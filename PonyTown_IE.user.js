@@ -351,20 +351,18 @@
             _to.Type = exists(_from.Type) ? _from.Type : 0;
             _to.Pattern = exists(_from.Pattern) ? _from.Pattern : 0;
 
+            this.NullifyArray(_to.Colors);
             if (exists(_from.Colors)) {
                 for (var i = 0; i < _from.Colors.length; i++) {
                     _to.Colors[i] = _from.Colors[i];
                 }
-            } else {
-                this.NullifyArray(_to.Colors);
             }
 
+            this.NullifyArray(_to.Outlines);
             if (exists(_from.Outlines)) {
                 for (var i = 0; i < _from.Outlines.length; i++) {
                     _to.Outlines[i] = _from.Outlines[i];
                 }
-            } else {
-                this.NullifyArray(_to.Outlines);
             }
         },
         ExportColorArray: function(colors_in, outlines_in, data) {
