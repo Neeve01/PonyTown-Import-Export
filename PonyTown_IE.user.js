@@ -1312,13 +1312,19 @@
                     }
                 };
 
-                textarea.onkeyup = function() {
-                    if (textarea.value != "") {
-                        button.innerHTML = "Import!";
-                    } else {
-                        button.innerHTML = "Dismiss";
-                    }
+                var change = function() {
+                    setTimeout(() => {
+                        if (textarea.value != "") {
+                            button.innerHTML = "Import!";
+                        } else {
+                            button.innerHTML = "Dismiss";
+                        }
+                    }, 0);
                 };
+                textarea.onkeyup = change;
+                textarea.onchange = change;
+                textarea.onpaste = change;
+
                 this.Overlay.appendChild(e);
             }
 
