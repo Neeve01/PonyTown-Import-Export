@@ -21,6 +21,9 @@ Likewise, click **Export** if you want to export.
   * Press **Ctrl + Shift + I**, check your **Console** for errors.
 * Character won't import!
   * Likewise, press **Ctrl + Shift + I**, check your **Console** for errors.
+* There's no Import/Export buttons.
+  * If PonyTown was updated recently, just wait for me to update userscript.
+  * No? Probably a browser issue. Try updating it, and if it won't work anyway, send me details about your browser.
   
 Once you're confident enough that there's an error, feel free to DM me in Discord, 
 
