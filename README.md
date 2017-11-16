@@ -31,6 +31,6 @@ Once you're confident enough that there's an error, feel free to DM me in Discor
 
 # FAQ
 * Can I share?
- * Feel free to, as long as you share it via link to this project.
+  * Feel free to, as long as you share it via link to this project.
 * Can I edit?
- * Yes, if you fork it.
+  * Yes, if you fork it.
