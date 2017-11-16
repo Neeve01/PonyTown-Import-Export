@@ -1235,7 +1235,7 @@
         ExportDialog: null,
         Overlay: null,
         Style: `
-		.nmw-ie-fullscreen{align-items:center;background:rgba(51,51,51,0.7);display:flex;height:100%;left:0;position:fixed;top:0;width:100%;z-index:1}
+		.nmw-ie-fullscreen{overflow:hidden;align-items:center;background:rgba(51,51,51,0.7);display:flex;height:100%;left:0;position:fixed;top:0;width:100%;z-index:1}
 		.nmw-ie-fullscreen .form{background:#212121;border:4px solid #CA7E4E;border-radius:25px;display:inline-block;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;left:50%;margin:0 auto;padding-left:.5rem;padding-right:.5rem;position:static;top:50%;vertical-align:middle;width:50%}
 		.nmw-ie-fullscreen .form .footer{height:16px;width:100%}
 		.nmw-ie-fullscreen .form .footer .elements{float:right;height:16px;line-height:16px;margin-bottom:.5rem;margin-top:.5rem}
@@ -1272,7 +1272,7 @@
         FooterHTMLCode: `
 		<div class="footer">
 			<div class="elements">
-				<label class="text">Import/Export © NotMyWing, PT © Agamnentzar</label>
+				<label class="text">PonyTown © Agamnentzar, Import/Export © NotMyWing</label>
 				<a target="_blank" href="https://twitter.com/NotMyWing" class="link">
 					<svg width="16" height="16" viewBox="0 0 72 72"><path fill-rule="evenodd" d="M67.812 16.141a26.246 26.246 0 0 1-7.519 2.06 13.134 13.134 0 0 0 5.756-7.244 26.127 26.127 0 0 1-8.313 3.176A13.075 13.075 0 0 0 48.182 10c-7.229 0-13.092 5.861-13.092 13.093 0 1.026.118 2.021.338 2.981-10.885-.548-20.528-5.757-26.987-13.679a13.048 13.048 0 0 0-1.771 6.581c0 4.542 2.312 8.551 5.824 10.898a13.048 13.048 0 0 1-5.93-1.638c-.002.055-.002.11-.002.162 0 6.345 4.513 11.638 10.504 12.84a13.177 13.177 0 0 1-3.449.457c-.846 0-1.667-.078-2.465-.231 1.667 5.2 6.499 8.986 12.23 9.09a26.276 26.276 0 0 1-16.26 5.606A26.21 26.21 0 0 1 4 55.976a37.036 37.036 0 0 0 20.067 5.882c24.083 0 37.251-19.949 37.251-37.249 0-.566-.014-1.134-.039-1.694a26.597 26.597 0 0 0 6.533-6.774z"></path></svg>
 				</a>
@@ -1316,6 +1316,14 @@
                         UI.StartImporting();
                     }
                 };
+
+                textarea.onkeyup = function() {
+                    if (textarea.value != "") {
+                        button.innerHTML = "Import!";
+                    } else {
+                        button.innerHTML = "Dismiss";
+                    }
+                };
                 this.Overlay.appendChild(e);
             }
 
@@ -1342,33 +1350,40 @@
         },
         ShowImport: function() {
             this.InjectHTML();
+            if (!exists(this.Overlay) || !exists(this.ImportDialog)) {
+                return;
+            }
 
-            this.Overlay.style.display = "flex";
-            this.ImportDialog.style.display = "inline-block";
+            this.ShowOverlay();
+            this.ImportDialog.style.display = "table-cell";
+
+            let button = this.ImportDialog.querySelector("button");
+            button.innerHTML = "Dismiss";
 
             let textarea = this.ImportDialog.querySelector("textarea");
             textarea.value = "";
             textarea.focus();
         },
+        ShowOverlay: async function() {
+            document.querySelector("body").style.overflow = "hidden";
+            this.Overlay.style.display = "flex";
+        },
         ShowExport: async function() {
             this.InjectHTML();
+            if (!exists(this.Overlay) || !exists(this.ImportDialog)) {
+                return;
+            }
 
-            this.Overlay.style.display = "flex";
-
-            await Sleep(250);
-            this.ExportDialog.style.display = "table-cell";
-            let textarea = this.ExportDialog.querySelector("textarea");
-            textarea.value = "";
-            await Sleep(0);
             let data = null;
             try {
                 data = JSON.stringify(await Character.Export());
             } catch (err) {
-                this.HideForms();
-                this.HideOverlay();
                 throw err;
             }
 
+            let textarea = this.ExportDialog.querySelector("textarea");
+            this.ShowOverlay();
+            this.ExportDialog.style.display = "table-cell";
             textarea.value = data;
             textarea.focus();
             textarea.setSelectionRange(0, textarea.value.length);
@@ -1376,8 +1391,8 @@
         StartImporting: async function() {
             let textarea = this.ImportDialog.querySelector("textarea");
 
+            this.HideForms();
             try {
-                this.HideForms();
                 await Character.Import(textarea.value);
             } catch (err) {
                 this.HideForms();
@@ -1393,6 +1408,7 @@
         },
         HideOverlay: function() {
             this.Overlay.style.display = "none";
+            document.querySelector("body").style.overflow = "";
         },
     }
 
@@ -1429,7 +1445,8 @@
             Form.append(FormBody);
 
             let ButtonGroup = document.createElement("div");
-            //ButtonGroup.setAttribute("class", "btn-groupa");
+            ButtonGroup.className = "btn-group";
+
             let Import = document.createElement("label");
             Import.setAttribute("class", "btn btn-primary");
             Import.innerHTML = "Import";
@@ -1456,8 +1473,6 @@
                 div.appendChild(document.createElement("br"));
                 div.appendChild(anchor);
                 FormBody.appendChild(div);
-            } else {
-                console.log("version is ok");
             }
 
             bodyTab.prepend(document.createElement("br"));
