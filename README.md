@@ -8,7 +8,7 @@ Adding this script into your browser will let you to Import/Export your characte
 1. Install any TamperMonkey-like userscript extension for your browser.
 * Chrome: [TamperMonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=ru)
 * Firefox: [GreaseMonkey](https://addons.mozilla.org/ru/firefox/addon/greasemonkey/)
-2. Add userscript by clicking [Here](#placeholder).
+2. Add userscript by clicking [here](https://github.com/Neeve01/PonyTown-Import-Export/raw/master/PonyTown_IE.user.js).
 
 # How do I use?
 Switch to your character's **Body** tab, press **Import** button and paste character code. For example, `{}` will clear all your current character settings.
