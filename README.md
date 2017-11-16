@@ -26,4 +26,4 @@ Once you're confident enough that there's an error, feel free to DM me in Discor
 # How do I contact you?
 * Discord: Neeve#9079.
 * Twitter: [@NotMyWing](https://twitter.com/NotMyWing)
-* I don't always check GitHub, so don't try messaging me here.
+* Use issue tracker on this project.
