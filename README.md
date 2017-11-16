@@ -7,7 +7,10 @@
 
 # What does it do?
 Adding this script into your browser will let you to Import/Export your character from/into simple JSON code for whatever reason there is. Either it's sharing your character with someone else, backing it up, or if you already surpassed your character limit and you don't really want to delete any of your characters.
+
 It's advised to click **Save** button before importing.
+
+Also done 100% without game code modification. :sparkles:
 
 # How do I install?
 1. Install any TamperMonkey-like userscript extension for your browser.
