@@ -3,6 +3,7 @@ This userscript is provided "as is" and "with all faults." I make no representat
 
 # What does it do?
 Adding this script into your browser will let you to Import/Export your character from/into simple JSON code for whatever reason there is. Either it's sharing your character with someone else, backing it up, or if you already surpassed your character limit and you don't really want to delete any of your characters.
+It's advised to click **Save** button before importing.
 
 # How do I install?
 1. Install any TamperMonkey-like userscript extension for your browser.
@@ -13,3 +14,16 @@ Adding this script into your browser will let you to Import/Export your characte
 # How do I use?
 Switch to your character's **Body** tab, press **Import** button and paste character code. For example, `{}` will clear all your current character settings.
 Likewise, click **Export** if you want to export.
+
+# Troubleshooting.
+* Nothing happens, or exporting window immediately closes after clicking on **Export**.
+  * Press **Ctrl + Shift + I**, check your **Console** for errors.
+* Character won't import!
+  * Likewise, press **Ctrl + Shift + I**, check your **Console** for errors.
+  
+Once you're confident enough that there's an error, feel free to DM me in Discord, 
+
+# How do I contact you?
+* Discord: Neeve#9079.
+* Twitter: [@NotMyWing](https://twitter.com/NotMyWing)
+* I don't always check GitHub, so don't try messaging me here.
