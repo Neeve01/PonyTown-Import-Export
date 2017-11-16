@@ -1,4 +1,7 @@
 # Tested with PonyTown 0.28.4-alpha version!
+
+<div style="text-align:center"><img src="https://i.imgur.com/O4cFqSw.png"/></div>
+
 ## Disclaimer
 *"Pony Town character Import/Export userscript", later "userscript", is provided "as is" and "with all faults." I make no representations or warranties of any kind concerning the safety, suitability, lack of viruses, inaccuracies, typographical errors, or other harmful components of this userscript. There are inherent dangers in the use of any software, and you are solely responsible for determining whether this userscript is compatible with your equipment and other software installed on your equipment. You are also solely responsible for the protection of your equipment and backup of your data, and I won't be liable for any damages you may suffer in connection with using, modifying, or distributing this userscript. User discretion is advised.*
 
