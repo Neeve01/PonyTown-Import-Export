@@ -15,7 +15,7 @@ Also done 100% without game code modification. :sparkles:
 # How do I install?
 1. Install any TamperMonkey-like userscript extension for your browser.
 * Chrome: [TamperMonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=ru)
-* Firefox: [GreaseMonkey](https://addons.mozilla.org/ru/firefox/addon/greasemonkey/)
+* Firefox: [TamkerMonkey](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/)
 2. Add userscript by clicking [here](https://github.com/Neeve01/PonyTown-Import-Export/raw/master/PonyTown_IE.user.js).
 
 # How do I use?
