@@ -445,7 +445,6 @@
                 let v = this.IOFunctions[i];
                 if (v.Tab === Utils.GetTab()) {
                     this.TabData = await v.SetupFunctions(document);
-                    console.log(this.TabData);
                     return;
                 }
             }
@@ -701,12 +700,8 @@
                     tabdata.Fangs = exists(data.Fangs) ? data.Fangs : 0;
 
                     if (exists(data.Markings)) {
-                        console.log(tabdata.Markings);
                         tabdata.Markings = exists(data.Markings) ? data.Markings : 0;
                         tabdata.MarkingsColor = exists(data.MarkingsColor) ? data.MarkingsColor : 0;
-
-                        console.log(data);
-                        console.log(tabdata);
                     } else {
                         tabdata.Markings = 0;
                     }
@@ -1391,16 +1386,14 @@
         StartImporting: async function() {
             let textarea = this.ImportDialog.querySelector("textarea");
 
-            this.HideForms();
             try {
                 await Character.Import(textarea.value);
             } catch (err) {
+                throw err;
+            } finally {
                 this.HideForms();
                 this.HideOverlay();
-                throw err;
             }
-
-            this.HideOverlay();
         },
         HideForms: function() {
             this.ImportDialog.style.display = "none";
