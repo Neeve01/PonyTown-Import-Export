@@ -1,4 +1,6 @@
 # Tested with PonyTown 0.28.4-alpha version!
+## Be careful though! It's quite of a beta, so use it for testing purposes mostly.
+## However, character codes WILL remain backwards-compatible, which means your old character codes will always remain valid.
 
 <div style="text-align:center"><img src="https://i.imgur.com/O4cFqSw.png"/></div>
 
@@ -22,7 +24,7 @@ Also done 100% without game code modification. :sparkles:
 Switch to your character's **Body** tab, press **Import** button and paste character code. For example, `{}` will clear all your current character settings.
 Likewise, click **Export** if you want to export.
 
-# Troubleshooting.
+# Troubleshooting
 * Nothing happens, or exporting window immediately closes after clicking on **Export**.
   * Press **Ctrl + Shift + I**, check your **Console** for errors.
 * Character won't import!
@@ -31,7 +33,7 @@ Likewise, click **Export** if you want to export.
   * If PonyTown was updated recently, just wait for me to update userscript.
   * No? Probably a browser issue. Try updating it, and if it won't work anyway, send me details about your browser.
   
-Once you're confident enough that there's an error, feel free to DM me in Discord, 
+Once you're confident enough that there's an error, feel free to contact me via one of next ways:
 
 # How do I contact you?
 * Discord: Neeve#9079.
