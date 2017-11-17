@@ -2,7 +2,7 @@
 // @name        PonyTown Import/Export
 // @namespace   azedith
 // @include     https://pony.town/*
-// @author		@NotMyWing
+// @author	@NotMyWing
 // @version     1
 // @grant       none
 // @downloadURL	https://github.com/Neeve01/PonyTown-Import-Export/raw/master/PonyTown_IE.user.js
@@ -10,6 +10,8 @@
 
 (function() {
     'use strict';
+
+    var debugging = false;
 
     var targetPonyTownVersion = "0.28.4-alpha";
     var githubLink = "https://github.com/Neeve01";
@@ -21,8 +23,20 @@
     var mousedownEvent = new Event('mousedown');
     var mouseupEvent = new Event('mouseup');
 
-    var exists = function(a) {
-        return (typeof(a) !== 'undefined') && (a !== null);
+    var debug = function(a) {
+        if (debugging) {
+            console.log(a);
+        }
+    }
+    var rgb2hex = function(rgb) {
+        if (/^#[0-9A-F]{6}$/i.test(rgb)) return rgb;
+
+        rgb = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+
+        function hex(x) {
+            return ("0" + parseInt(x).toString(16)).slice(-2);
+        }
+        return hex(rgb[1]) + hex(rgb[2]) + hex(rgb[3]);
     };
 
     var Sleep = function(time) {
@@ -31,83 +45,259 @@
         });
     };
 
+    var skipFrame = async function() {
+        return new Promise(function(resolve) {
+            resolve();
+        });
+    }
+
     var observer_target = document.querySelector("pony-town-app");
 
-    if (!exists(observer_target)) {
+    if (!observer_target) {
         return;
     }
 
     var Utils = {
-        DefineSet: function(tab, title, out) {
-            let set = tab.querySelector('[label="' + title + '"]');
+        GetFillOutlineValues: function(element) {
+            if (element.tagName == "FILL-OUTLINE") {
+                let divs = element.querySelectorAll("fill-outline > div > div");
+                let color = null,
+                    outline = null;
 
-            if (!exists(set)) {
-                return;
+                if (divs[0] && divs[1]) {
+                    let checkbox = divs[0].querySelector("check-box");
+                    if (!checkbox || (checkbox && !this.IsCheckboxChecked(checkbox))) {
+                        let picker = divs[1].querySelector("color-picker");
+                        color = this.GetTextValue(picker);
+                    }
+                }
+
+                if (divs[2] && divs[3]) {
+                    let checkbox = divs[2].querySelector("check-box");
+                    if (!checkbox || (checkbox && !this.IsCheckboxChecked(checkbox))) {
+                        let picker = divs[3].querySelector("color-picker");
+                        outline = this.GetTextValue(picker);
+                    }
+                }
+
+                return [color, outline]
+            }
+        },
+        SetFillOutlineValues: function(element, value) {
+            if (element.tagName == "FILL-OUTLINE") {
+                let color = value[0] || null;
+                let outline = value[1] || null;
+
+                let divs = element.querySelectorAll("fill-outline > div > div");
+
+                if (divs[0] && divs[1]) {
+                    let checkbox = divs[0].querySelector("check-box");
+                    if (checkbox) {
+                        this.SetCheckbox(checkbox, !!!color);
+                    }
+
+                    if (color) {
+                        let picker = divs[1].querySelector("color-picker");
+                        this.SetTextValue(picker, color || "FFFFFF");
+                    }
+                }
+
+                if (divs[2] && divs[3]) {
+                    let checkbox = divs[2].querySelector("check-box");
+                    if (checkbox) {
+                        this.SetCheckbox(checkbox, !!!outline);
+                    }
+
+                    if (outline) {
+                        let picker = divs[3].querySelector("color-picker");
+                        this.SetTextValue(picker, outline || "000000");
+                    }
+                }
+            }
+        },
+        DefineFillOutline: function(obj, fieldname, fill_outline) {
+            let utils = this;
+            Object.defineProperty(obj, fieldname, {
+                get: function() {
+                    if (fill_outline) {
+                        return utils.GetFillOutlineValues(fill_outline);
+                    }
+                },
+                set: function(value) {
+                    if (fill_outline) {
+                        return utils.SetFillOutlineValues(fill_outline, value);
+                    }
+                    return null;
+                }
+            });
+        },
+        DefineSet: function(set, title) {
+            let out = {};
+
+            if (set.tagName != "SET-SELECTION") {
+                set = set.querySelector('set-selection[label="' + title + '"]');
+
+                if (!set) {
+                    return;
+                }
             }
 
             let sprite_selection = set.querySelectorAll('sprite-selection');
-            let divs = set.children;
-            let utils = this;
 
             this.DefineSpriteSelection(out, "Type", sprite_selection[0]);
-
             Object.defineProperty(out, "Pattern", {
                 get: function() {
                     let sprite_selection = set.querySelectorAll('sprite-selection')[1];
-                    if (exists(sprite_selection)) {
+                    if (sprite_selection) {
                         return utils.GetSelectedSprite(sprite_selection);
                     }
                 },
                 set: function(value) {
                     let sprite_selection = set.querySelectorAll('sprite-selection')[1];
-                    if (exists(sprite_selection)) {
-                        utils.SetSelectedSprite(sprite_selection, value);
+                    if (sprite_selection) {
+                        return utils.SetSelectedSprite(sprite_selection, value);
                     }
-                    return true;
+                    return null;
                 }
             });
 
-            this.DefineColorArray(out, "Colors", "Outlines", [
-                divs[divs.length - 6],
-                divs[divs.length - 5],
-                divs[divs.length - 4],
-                divs[divs.length - 3],
-                divs[divs.length - 2],
-                divs[divs.length - 1]
-            ]);
-        },
-        DefineColorPicker: function(obj, fieldname, picker) {
             let utils = this;
-            Object.defineProperty(obj, fieldname, {
+            Object.defineProperty(out, "Colors", {
                 get: function() {
-                    if (exists(picker)) {
-                        let value = utils.GetTextValue(picker);
-                        if (exists(value)) {
-                            return value.toLowerCase();
-                        }
+                    let fill_outlines = set.querySelectorAll("fill-outline");
+
+                    let colors = [],
+                        outlines = [];
+                    for (let i = 0; i < fill_outlines.length; i++) {
+                        let [color, outline] = utils.GetFillOutlineValues(fill_outlines[i]);
+                        colors.push(color);
+                        outlines.push(outline);
                     }
+                    return [colors, outlines];
                 },
                 set: function(value) {
-                    if (exists(picker)) {
-                        utils.SetTextValue(picker, exists(value) ? value.toLowerCase() : value);
+                    let colors = (value && value[0]) || [];
+                    let outlines = (value && value[1]) || [];
+
+                    let fill_outlines = set.querySelectorAll("fill-outline");
+                    for (let i = 0; i < fill_outlines.length; i++) {
+                        utils.SetFillOutlineValues(fill_outlines[i], [colors[i] || null, outlines[i] || null]);
                     }
-                    return true;
                 }
             });
+
+            return out;
+        },
+        LookupFormGroupByName: function(container, name) {
+            let formgroups = container.querySelectorAll(".row.form-group");
+
+            for (let i in formgroups) {
+                let v = formgroups[i];
+                if (!v.querySelector)
+                    continue;
+
+                let label = v.querySelector("label");
+                if (label && label.innerHTML == name)
+                    return v;
+            }
+        },
+        FormGroup_DefineColorPicker: function(formgroup) {
+            let utils = this,
+                out = {};
+
+            let key_div = formgroup.children[0];
+            let value_div = formgroup.children[1];
+
+            let checkbox = key_div.querySelector("check-box");
+
+            if (checkbox) {
+                let icon = checkbox.getAttribute("icon");
+                let should_invert = icon == "fa-lock";
+
+                Object.defineProperty(out, "Enabled", {
+                    get: function() {
+                        if (checkbox) {
+                            let checked = utils.IsCheckboxChecked(checkbox);
+                            return should_invert ? !checked : checked;
+                        }
+                    },
+                    set: function(value) {
+                        if (checkbox) {
+                            return utils.SetCheckbox(checkbox, should_invert ? !value : value);
+                        }
+                        return null;
+                    }
+                });
+            }
+
+            let picker = value_div.querySelector("color-picker");
+            if (picker) {
+                Object.defineProperty(out, "Value", {
+                    get: function() {
+                        if (checkbox && !out.Enabled)
+                            return;
+                        if (picker)
+                            return utils.GetTextValue(picker);
+                    },
+                    set: function(value) {
+                        if (checkbox) {
+                            if (!value)
+                                return out.Enabled = false;
+                            else if (!out.Enabled)
+                                out.Enabled = true;
+                        }
+                        if (picker)
+                            return utils.SetTextValue(picker, value);
+                        return null;
+                    }
+                });
+            }
+
+            return out;
+        },
+        FormGroup_DefineSpriteSelection: function(formgroup) {
+            let utils = this,
+                out = {};
+
+            let key_div = formgroup.children[0];
+            let value_div = formgroup.children[1];
+
+            let checkbox = key_div.querySelector("check-box");
+            if (checkbox) {
+                Object.defineProperty(out, "Checked", {
+                    get: function() {
+                        if (checkbox) {
+                            return utils.IsCheckboxChecked(checkbox);
+                        }
+                    },
+                    set: function(value) {
+                        if (checkbox) {
+                            return utils.SetCheckbox(checkbox, value);
+                        }
+                        return null;
+                    }
+                });
+            }
+
+            let picker = value_div.querySelector("sprite-selection");
+            this.DefineSpriteSelection(out, "Type", picker);
+            this.DefineSpriteSelection(out, "Value", picker);
+
+            return out;
         },
         DefineSpriteSelection: function(obj, fieldname, picker) {
             let utils = this;
             Object.defineProperty(obj, fieldname, {
                 get: function() {
-                    if (exists(picker)) {
+                    if (picker) {
                         return utils.GetSelectedSprite(picker);
                     }
                 },
                 set: function(value) {
-                    if (exists(picker)) {
-                        utils.SetSelectedSprite(picker, value);
+                    if (picker) {
+                        return utils.SetSelectedSprite(picker, value);
                     }
-                    return true;
+                    return null;
                 }
             });
         },
@@ -115,77 +305,15 @@
             let utils = this;
             Object.defineProperty(obj, fieldname, {
                 get: function() {
-                    if (exists(checkbox)) {
+                    if (checkbox) {
                         return utils.IsCheckboxChecked(checkbox);
                     }
                 },
                 set: function(value) {
-                    if (exists(checkbox)) {
-                        utils.SetCheckbox(checkbox, value);
+                    if (checkbox) {
+                        return utils.SetCheckbox(checkbox, value);
                     }
-                    return true;
-                }
-            });
-        },
-        DefineColorArray: function(obj, colorfieldname, outlinefieldname, divs) {
-            let length = divs.length;
-            let utils = this;
-            var colorproxy = new Proxy({}, {
-                get: function(t, id) {
-                    if (id == "length") {
-                        return length;
-                    }
-                    if (exists(divs[id]) && exists(divs[id].querySelector)) {
-
-                        let picker = divs[id].querySelector("color-picker");
-                        if (picker) {
-                            return utils.GetTextValue(picker);
-                        }
-                    }
-                },
-                set: function(t, id, value) {
-                    if (exists(divs[id]) && exists(divs[id].querySelector)) {
-                        let picker = divs[id].querySelector("color-picker");
-                        if (picker) {
-                            utils.SetTextValue(picker, value);
-                        }
-                    }
-                    return true;
-                }
-            });
-
-            var outlineproxy = new Proxy({}, {
-                get: function(t, id) {
-                    if (id == "length") {
-                        return length;
-                    }
-                    if (exists(divs[id]) && exists(divs[id].querySelectorAll)) {
-                        let picker = divs[id].querySelectorAll("color-picker")[1];
-                        if (picker) {
-                            return utils.GetTextValue(picker);
-                        }
-                    }
-                },
-                set: function(t, id, value) {
-                    if (exists(divs[id]) && exists(divs[id].querySelectorAll)) {
-                        let picker = divs[id].querySelectorAll("color-picker")[1];
-                        if (picker) {
-                            utils.SetTextValue(picker, value);
-                        }
-                    }
-                    return true;
-                }
-            });
-
-            Object.defineProperty(obj, colorfieldname, {
-                get: function() {
-                    return colorproxy;
-                }
-            });
-
-            Object.defineProperty(obj, outlinefieldname, {
-                get: function() {
-                    return outlineproxy;
+                    return null;
                 }
             });
         },
@@ -209,15 +337,17 @@
         },
         GetSelectedSprite: function(element) {
             if (element.tagName == "SPRITE-SELECTION") {
+                let selection = element;
                 element = element.children[0].children[0];
 
-                if (!exists(element.querySelector("sprite-box.active"))) {
-                    let show_more = element.querySelector('[title="Show more..."]');
-                    if (exists(show_more)) {
-                        show_more.dispatchEvent(clickEvent);
+                if (!element.querySelector("sprite-box.active")) {
+                    let show_more = selection.querySelector('.selection-item-more');
+                    if (show_more) {
+                        show_more.parentNode.dispatchEvent(clickEvent);
                     }
                 }
-                if (!exists(element.querySelector("sprite-box.active"))) {
+
+                if (!element.querySelector("sprite-box.active")) {
                     return;
                 }
 
@@ -237,9 +367,9 @@
                 let sprites = element.querySelectorAll("sprite-box");
 
                 if (sprite > sprites.length - 1) {
-                    let show_more = selection.querySelector('[title="Show more..."]');
-                    if (exists(show_more)) {
-                        show_more.dispatchEvent(clickEvent);
+                    let show_more = selection.querySelector('.selection-item-more');
+                    if (show_more) {
+                        show_more.parentNode.dispatchEvent(clickEvent);
                         sprites = selection.querySelectorAll("sprite-box");
                     } else {
                         return;
@@ -252,975 +382,756 @@
             }
         },
         SetCheckbox: function(element, value) {
-            if (!exists(element)) { return; }
             if (element.tagName == "CHECK-BOX") {
                 if (this.IsCheckboxChecked(element) != value) {
                     element.children[0].dispatchEvent(clickEvent);
-                }
-            } else if (element.tagName == "COLOR-PICKER") {
-                // If it's lockable, then checkbox should be one element before.
-                let container = element.parentNode,
-                    parent = container.parentNode;
-
-                for (var i = 0; i < parent.children.length; i++) {
-                    if (parent.children[i] == container) {
-                        if (i === 0) { return; }
-
-                        let el = parent.children[i - 1];
-                        if (el.children.length) {
-                            let checkbox = el.querySelector("check-box");
-                            if (!exists(checkbox)) { return; }
-
-                            if (checkbox.getAttribute("icon") === "fa-check") {
-                                value = !value;
-                            }
-                            this.SetCheckbox(checkbox, value);
-                        }
-                        return;
-                    }
                 }
             }
         },
         GetTextValue: function(element) {
             if (element.tagName == "COLOR-PICKER") {
-                element = element.children[0];
-                if (element === null) { return; }
-                if (this.IsDisabled(element)) {
-                    return;
-                }
-
-                for (var i = 0; i < element.children.length; i++) {
-                    if (element.children[i].tagName == "INPUT") {
-                        element = element.children[i];
-                    } else if (i == element.children.length - 1) {
-                        return;
-                    }
-                }
+                return element.querySelector("input").value;
             }
             return element.value;
         },
         SetTextValue: function(element, value) {
             if (element.tagName == "COLOR-PICKER") {
-                element = element.children[0];
-                if (element === null) { return; }
-
-                if (value === null || value === "") {
-                    this.SetCheckbox(element.parentNode, true);
-                    return;
-                }
-
-                if (this.IsDisabled(element)) {
-                    this.SetCheckbox(element.parentNode, false);
-                }
-
-                for (var i = 0; i < element.children.length; i++) {
-                    if (element.children[i].tagName == "INPUT") {
-                        element = element.children[i];
-                    } else if (i == element.children.length - 1) {
-                        return;
-                    }
-                }
+                element = element.querySelector("input");
             }
             element.value = value;
             element.dispatchEvent(inputEvent);
         },
-        IsDisabled: function(element) {
-            if (element.tagName == "COLOR-PICKER") {
-                element = element.children[0];
-                if (element === null) { return; }
-                if (element.className.search("disabled") != -1) {
-                    return true;
-                }
-            }
-            return element.className.search("disabled") != -1;
+        ImportSet: function(source, target) {
+            target.Type = (source && source.Type) || 0;
+            target.Pattern = (source && source.Pattern) || 0;
+            let colors = ((source && source.Colors) || []).map((e) => { if (e === "") return null; return e; });
+            let outlines = ((source && source.Outlines) || []).map((e) => { if (e === "") return null; return e; });
+
+            target.Colors = [colors, outlines];
         },
-        NullifyArray: function(arr) {
-            for (var i = 0; i < arr.length; i++) {
-                arr[i] = null;
-            }
-        },
-        ImportBlock: function(_from, _to) {
-            if (!exists(_from)) {
-                _to.Type = 0;
-                _to.Pattern = 0;
-                this.NullifyArray(_to.Colors);
-                this.NullifyArray(_to.Outlines);
+        ExportSet: function(origin) {
+            if (!origin) {
                 return;
             }
+            let out = {};
 
-            _to.Type = exists(_from.Type) ? _from.Type : 0;
-            _to.Pattern = exists(_from.Pattern) ? _from.Pattern : 0;
+            if (origin.Type && origin.Type !== 0) {
+                out.Type = origin.Type;
+            }
+            if (origin.Pattern && origin.Pattern !== 0) {
+                out.Pattern = origin.Pattern;
+            }
 
-            this.NullifyArray(_to.Colors);
-            if (exists(_from.Colors)) {
-                for (var i = 0; i < _from.Colors.length; i++) {
-                    _to.Colors[i] = _from.Colors[i];
+            let [colors, outlines] = origin.Colors;
+            while (colors.length > 0 && !colors[colors.length - 1]) {
+                colors.splice(-1, 1);
+            }
+            if (colors.length > 0) {
+                out.Colors = colors.map((e) => { if (e === null) return ""; return e; });
+            }
+
+            while (outlines.length > 0 && !outlines[outlines.length - 1]) {
+                outlines.splice(-1, 1);
+            }
+            if (outlines.length > 0) {
+                outlines = outlines.map((e) => { if (e === null) return ""; return e; })
+                out.Outlines = outlines;
+            }
+            return out;
+        }
+    };
+
+    var PonyTown = {
+        SetupFunctions: async function() {
+            let tab = this.GetTab();
+            for (let i in TabFunctions) {
+                let v = TabFunctions[i];
+                if (v.Tab === tab) {
+                    let container = document.querySelector("tabset > div > tab.active.tab-pane");
+                    return this.TabData = await v.SetupFunctions(container);
                 }
             }
-
-            this.NullifyArray(_to.Outlines);
-            if (exists(_from.Outlines)) {
-                for (var i = 0; i < _from.Outlines.length; i++) {
-                    _to.Outlines[i] = _from.Outlines[i];
-                }
-            }
-        },
-        ExportColorArray: function(colors_in, outlines_in, data) {
-            let colors = [];
-            for (var i = 0; i < colors_in.length; i++) {
-                let color = colors_in[i];
-                colors[i] = exists(color) ? color : "";
-            }
-            if (!colors.every((e) => e === "")) {
-                while (colors[colors.length - 1] === "") {
-                    colors.splice(-1, 1);
-                }
-                data.Colors = colors;
-            }
-
-            let outlines = [];
-            for (var i = 0; i < outlines_in.length; i++) {
-                let color = outlines_in[i];
-                outlines[i] = exists(color) ? color : "";
-            }
-            if (!outlines.every((e) => e === "")) {
-                while (outlines[outlines.length - 1] === "") {
-                    outlines.splice(-1, 1);
-                }
-                data.Outlines = outlines;
-            }
-        },
-        ExportBlock: function(origin, data) {
-            if (!exists(origin)) {
-                return;
-            }
-
-            if (exists(origin.Type) && origin.Type !== 0) {
-                data.Type = origin.Type;
-            }
-            if (exists(origin.Pattern) && origin.Pattern !== 0) {
-                data.Pattern = origin.Pattern;
-            }
-
-            this.ExportColorArray(origin.Colors,
-                origin.Outlines,
-                data);
-        },
-        SetTab: async function(tab) {
-            let pills = document.querySelector('ul.nav-pills');
-            let hrefs = pills.querySelectorAll('a');
-            if (typeof(tab) == "string") {
-                tab = tab.toLowerCase();
-
-                for (var i = 0; i < hrefs.length; i++) {
-                    if (hrefs[i].querySelector("span").innerHTML.search(tab) != -1) {
-                        tab = i;
-                        break;
-                    }
-                }
-                if (!exists(i)) { return; }
-            }
-            if (hrefs[tab].className.search("active") == -1) {
-                hrefs[tab].dispatchEvent(clickEvent);
-            }
-
-            await Character.SetupFunctions();
+            this.TabData = null;
         },
         GetTab: function() {
-            let pills = document.querySelector('ul.nav-pills');
-            let hrefs = pills.querySelectorAll('a');
+            // Thanks, Keu!
+            return Number(localStorage["character-active-tab"]);
+        },
+        SetTab: async function(tab) {
+            if (this.GetTab() != tab) {
+                let tabset = document.querySelector(".character-tabs > tabset")
+                let hrefs = tabset.querySelectorAll('tabset > ul > li.nav-item > a');
 
-            for (var i = 0; i < hrefs.length; i++) {
-                if (hrefs[i].className.search("active") != -1) {
-                    return i;
+                if (hrefs[tab].className.search("active") == -1) {
+                    hrefs[tab].dispatchEvent(clickEvent);
+                }
+            }
+
+            return await this.SetupFunctions();
+        },
+        GetAccessoryTab: function() {
+            return Number(localStorage["character-active-accessory-tab"]);
+        },
+        SetAccessoryTab: async function(tab) {
+            if (this.GetTab() != 4) { return; }
+            if (this.GetAccessoryTab() != tab) {
+                let tabset = document.querySelector("[active='activeAccessoryTab']");
+                let hrefs = tabset.querySelectorAll('tabset > ul > li.nav-item > a');
+
+                if (hrefs[tab].className.search("active") == -1) {
+                    hrefs[tab].dispatchEvent(clickEvent);
+                }
+            }
+            return await this.SetupFunctions();
+        },
+    }
+
+    var TabFunctions = {
+        ["Body"]: {
+            Tab: 0,
+            Import: async function(data, tabdata) {
+                tabdata.BodyColors = [data.Color || "ffffff", data.Outline || "000000"];
+
+                // Horn.
+                Utils.ImportSet(data.Horn, tabdata.Horn);
+
+                // Wings.
+                Utils.ImportSet(data.Wings, tabdata.Wings);
+
+                // Ears.
+                Utils.ImportSet(data.Ears, tabdata.Ears)
+
+                // Front hooves.
+                Utils.ImportSet(data.FrontHooves, tabdata.FrontHooves);
+
+                // Back hooves.
+                Utils.ImportSet(data.BackHooves, tabdata.BackHooves);
+
+                // Buttmark
+                tabdata.Buttmark = data.Buttmark;
+                tabdata.FlipButtmark = data.FlipButtmark || false;
+            },
+            Export: async function(tabdata) {
+                let exported = {};
+
+                if (tabdata.CustomOutlines) {
+                    exported.OutlinesEnabled = tabdata.CustomOutlines;
+                }
+
+                let [color, outline] = tabdata.BodyColors;
+                if (color && color.toLowerCase() !== "ffffff") {
+                    exported.Color = color;
+                }
+                if (outline && outline !== "000000") {
+                    exported.Outline = outline;
+                }
+
+                // Horn
+                if (tabdata.Horn.Type > 0) {
+                    exported.Horn = Utils.ExportSet(tabdata.Horn);
+                }
+
+                // Wings
+                if (tabdata.Wings.Type > 0) {
+                    exported.Wings = Utils.ExportSet(tabdata.Wings);
+                }
+
+                // Ears
+                if (tabdata.Ears.Type > 0) {
+                    exported.Ears = Utils.ExportSet(tabdata.Ears);
+                }
+
+                // Front hooves
+                if (tabdata.FrontHooves.Type > 0) {
+                    exported.FrontHooves = Utils.ExportSet(tabdata.FrontHooves);
+                }
+
+                // Back hooves
+                if (tabdata.BackHooves.Type > 0) {
+                    exported.BackHooves = Utils.ExportSet(tabdata.BackHooves);
+                }
+
+                // Buttmark
+                let mark = tabdata.Buttmark;
+                if (!mark.every((e) => e === "")) {
+                    exported.Buttmark = mark;
+                }
+                if (tabdata.FlipButtmark) {
+                    exported.FlipButtmark = true;
+                }
+
+                return exported;
+            },
+            GetButtmark: function(container) {
+                let element = container.querySelector("bitmap-box");
+                if (element.tagName == "BITMAP-BOX") {
+                    element = element.children[0];
+
+                    let pixels = [];
+
+                    let rows = element.children;
+
+                    let count = 0;
+                    for (var i = 0; i < rows.length; i++) {
+                        let bits = rows[i].children;
+                        for (var j = 0; j < rows.length; j++) {
+                            pixels[count++] = bits[j].style.backgroundColor ? rgb2hex(bits[j].style.backgroundColor) : "";
+                        }
+                    }
+                    return pixels;
+                }
+            },
+            SetButtmark: function(container, pixels) {
+                let element = container.querySelector("bitmap-box");
+                if (element) {
+                    element = element.children[0];
+
+                    Utils.EraseButtmark();
+
+                    if (!pixels) { return; }
+                    if (pixels.every((e) => e === "")) { return; }
+
+                    Utils.PickBrush();
+
+                    let rows = element.children;
+                    let count = 0;
+                    for (var i = 0; i < rows.length; i++) {
+                        let bits = rows[i].children;
+                        for (var j = 0; j < rows.length; j++) {
+                            if (pixels[count] !== "") {
+                                Utils.SetPixel(bits[j], pixels[count]);
+                            }
+                            count++;
+                        }
+                    }
+                    return pixels;
+                }
+            },
+            SetupFunctions: async function(container) {
+                let setup = {};
+
+                let checkbox = container.querySelector('check-box');
+
+                Utils.DefineCheckbox(setup, "CustomOutlines", checkbox);
+                Utils.DefineFillOutline(setup, "BodyColors", container.querySelector('[label="Body color"]'));
+
+                setup.Horn = Utils.DefineSet(container, "Horn");
+                setup.Wings = Utils.DefineSet(container, "Wings");
+                setup.Ears = Utils.DefineSet(container, "Ears");
+                setup.FrontHooves = Utils.DefineSet(container, "Front hooves");
+                setup.BackHooves = Utils.DefineSet(container, "Back hooves");
+
+                let io = this;
+                Object.defineProperty(setup, "Buttmark", {
+                    get: function() {
+                        return io.GetButtmark(container);
+                    },
+                    set: function(value) {
+                        return io.SetButtmark(container, value);
+                    }
+                });
+
+                let labels = container.querySelectorAll("label");
+                let flip_checkbox = [].filter.call(labels, function(element) {
+                    return element.innerHTML.search("don't") != -1;
+                })[0].parentNode.querySelector("check-box");
+
+                Utils.DefineCheckbox(setup, "FlipButtmark", flip_checkbox);
+
+                return setup;
+            }
+        },
+        ["Mane"]: {
+            Tab: 1,
+            Import: async function(data, tabdata) {
+                Utils.ImportSet(data.Mane, tabdata.Mane);
+                Utils.ImportSet(data.Backmane, tabdata.Backmane);
+            },
+            Export: async function(tabdata) {
+                let exported = {};
+
+                if (tabdata.Mane.Type > 0) {
+                    exported.Mane = Utils.ExportSet(tabdata.Mane);
+                }
+
+                if (tabdata.Backmane.Type > 0) {
+                    exported.Backmane = Utils.ExportSet(tabdata.Backmane);
+                }
+
+                return exported;
+            },
+            SetupFunctions: async function(container) {
+                let setup = {};
+
+                setup.Mane = Utils.DefineSet(container, "Mane");
+                setup.Backmane = Utils.DefineSet(container, "Back mane");
+
+                return setup;
+            }
+        },
+        ["Tail"]: {
+            Tab: 2,
+            Import: async function(data, tabdata) {
+                Utils.ImportSet(data.Tail, tabdata.Tail);
+            },
+            Export: async function(tabdata) {
+                let exported = {};
+
+                if (tabdata.Tail.Type > 0) {
+                    exported.Tail = Utils.ExportSet(tabdata.Tail);
+                }
+
+                return exported;
+            },
+            SetupFunctions: async function(container) {
+                let setup = {};
+
+                setup.Tail = Utils.DefineSet(container, "Tail");
+
+                return setup;
+            }
+        },
+        ["Face"]: {
+            Tab: 3,
+            Container: null,
+            Import: async function(data, tabdata) {
+                tabdata.EyeColor.Value = data.EyeColor || "000000";
+                tabdata.EyeColorLeft.Value = data.EyeColorLeft || null;
+                tabdata.EyeWhitesColor.Value = data.EyeWhitesColor || "ffffff";
+
+                let right = data.Eyes || 0;
+                let left = typeof(data.LeftEye) == "number" ? data.Number : null;
+                this.SetEyes([right, left]);
+
+                tabdata.Eyeshadow.Value = data.Eyeshadow || null;
+                tabdata.Eyelashes.Value = data.Eyelashes || 0;
+
+                tabdata.Expression.Value = data.Expression || 0;
+                tabdata.Fangs.Value = data.Fangs || 0;
+
+                if (data.Markings) {
+                    tabdata.Markings.Value = data.Markings || 0;
+                    tabdata.MarkingsColor.Value = data.MarkingsColor || "FFFFFF";
+                } else {
+                    tabdata.Markings.Value = 0;
+                }
+
+                Utils.ImportSet(data.FacialHair, tabdata.FacialHair);
+                Utils.ImportSet(data.Muzzle, tabdata.Muzzle);
+            },
+            Export: async function(tabdata) {
+                let exported = {};
+
+                if (tabdata.EyeColor.Value !== "000000") {
+                    exported.EyeColor = tabdata.EyeColor.Value;
+                }
+
+                if (tabdata.EyeColorLeft.Enabled) {
+                    exported.EyeColorLeft = tabdata.EyeColorLeft.Value;
+                }
+
+                if (tabdata.EyeWhitesColor.Value !== "ffffff") {
+                    exported.EyeWhitesColor = tabdata.EyeWhitesColor.Value;
+                }
+
+                let [right, left] = this.GetEyes();
+
+                if (right !== 0) {
+                    exported.Eyes = right;
+                }
+
+                if (typeof(left) == "number") {
+                    exported.LeftEye = left;
+                }
+
+                if (tabdata.Eyeshadow.Enabled) {
+                    exported.Eyeshadow = tabdata.Eyeshadow.Value;
+                }
+
+                if (tabdata.Eyelashes.Value > 0) {
+                    exported.Eyelashes = tabdata.Eyelashes.Value;
+                }
+
+                let muzzle = Utils.ExportSet(tabdata.Muzzle);
+                if (Object.keys(muzzle).length > 0) {
+                    exported.Muzzle = muzzle;
+                }
+
+                if (tabdata.Expression.Value > 0) {
+                    exported.Expression = tabdata.Expression.Value;
+                }
+
+                if (tabdata.Fangs.Value > 0) {
+                    exported.Fangs = tabdata.Fangs.Value;
+                }
+
+                if (tabdata.Markings.Value > 0) {
+                    exported.Markings = tabdata.Markings.Value;
+                    exported.MarkingsColor = tabdata.MarkingsColor.Value;
+                }
+
+                if (tabdata.FacialHair.Type > 0) {
+                    exported.FacialHair = Utils.ExportSet(tabdata.FacialHair);
+                }
+
+                return exported;
+            },
+            GetEyeSelectors: function() {
+                let right = Utils.LookupFormGroupByName(this.Container, "Eyes");
+                if (right) {
+                    return [Utils.FormGroup_DefineSpriteSelection(right), null];
+                } else {
+                    right = Utils.LookupFormGroupByName(this.Container, "Right eye");
+                    let left = Utils.LookupFormGroupByName(this.Container, "Left eye");
+
+                    right = right ? Utils.FormGroup_DefineSpriteSelection(right) : null;
+                    left = left ? Utils.FormGroup_DefineSpriteSelection(left) : null;
+
+                    return [right, left];
+                }
+            },
+            SetEyes: async function(values) {
+                let right = values[0] || 0;
+                let left = values[1] || null;
+
+                let [right_s, left_s] = this.GetEyeSelectors();
+                if (left) {
+                    right_s.Enabled = !!!left;
+                    [right_s, left_s] = this.GetEyeSelectors();
+                }
+
+                right_s.Type = right;
+                if (left_s) {
+                    left_s.Type = left;
+                }
+            },
+            GetEyes: function() {
+                let [right_s, left_s] = this.GetEyeSelectors();
+                let right = right_s ? right_s.Value : 0;
+                let left = left_s ? left_s.Value : null;
+                return [right, left];
+            },
+            SetupFunctions: async function(container) {
+                let setup = {};
+                this.Container = container;
+
+                setup.EyeColor = Utils.FormGroup_DefineColorPicker(Utils.LookupFormGroupByName(container, "Eye color"));
+                setup.EyeColorLeft = Utils.FormGroup_DefineColorPicker(Utils.LookupFormGroupByName(container, "Eye color (left)"));
+                setup.EyeWhitesColor = Utils.FormGroup_DefineColorPicker(Utils.LookupFormGroupByName(container, "Eye whites color"));
+
+                setup.SetEyes = (values) => { return this.SetEyes(values); }
+                setup.GetEyes = () => { return this.GetEyes; }
+
+                setup.Eyeshadow = Utils.FormGroup_DefineColorPicker(Utils.LookupFormGroupByName(container, "Eyeshadow"));
+                setup.Eyelashes = Utils.FormGroup_DefineSpriteSelection(Utils.LookupFormGroupByName(container, "Eyelashes"));
+
+                setup.Expression = Utils.FormGroup_DefineSpriteSelection(Utils.LookupFormGroupByName(container, "Expression"));
+                setup.Fangs = Utils.FormGroup_DefineSpriteSelection(Utils.LookupFormGroupByName(container, "Fangs"));
+
+                setup.Markings = Utils.FormGroup_DefineSpriteSelection(Utils.LookupFormGroupByName(container, "Markings"));
+                setup.MarkingsColor = Utils.FormGroup_DefineColorPicker(Utils.LookupFormGroupByName(container, "Markings color"));
+
+                setup.Muzzle = Utils.DefineSet(container, "Muzzle");
+                setup.FacialHair = Utils.DefineSet(container, "Facial hair");
+
+                return setup;
+            }
+        },
+        ["Other"]: {
+            Tab: 4,
+            TabFunctions: {
+                ["Head"]: {
+                    Tab: 0,
+                    Import: async function(data, tabdata) {
+                        Utils.ImportSet(data.HeadAccessories, tabdata.HeadAccessories);
+                        Utils.ImportSet(data.EarAccessories, tabdata.EarAccessories);
+                        Utils.ImportSet(data.FaceAccessories, tabdata.FaceAccessories);
+                    },
+                    Export: async function(tabdata) {
+                        let exported = {};
+
+                        if (tabdata.HeadAccessories.Type > 0) {
+                            exported.HeadAccessories = Utils.ExportSet(tabdata.HeadAccessories);
+                        }
+                        if (tabdata.EarAccessories.Type > 0) {
+                            exported.EarAccessories = Utils.ExportSet(tabdata.EarAccessories);
+                        }
+                        if (tabdata.FaceAccessories.Type > 0) {
+                            exported.FaceAccessories = Utils.ExportSet(tabdata.FaceAccessories);
+                        }
+
+                        return exported;
+                    },
+                    SetupFunctions: async function(container) {
+                        let setup = {};
+
+                        setup.HeadAccessories = Utils.DefineSet(container, "Head accessories");
+                        setup.EarAccessories = Utils.DefineSet(container, "Ear accessories");
+                        setup.FaceAccessories = Utils.DefineSet(container, "Face accessories");
+
+                        return setup;
+                    }
+                },
+                ["Neck"]: {
+                    Tab: 1,
+                    Import: async function(data, tabdata) {
+                        Utils.ImportSet(data.NeckAccessories, tabdata.NeckAccessories);
+                    },
+                    Export: async function(tabdata) {
+                        let exported = {};
+
+                        if (tabdata.NeckAccessories.Type > 0) {
+                            exported.NeckAccessories = Utils.ExportSet(tabdata.NeckAccessories);
+                        }
+
+                        return exported;
+                    },
+                    SetupFunctions: async function(container) {
+                        let setup = {};
+
+                        setup.NeckAccessories = Utils.DefineSet(container, "Neck accessories");
+
+                        return setup;
+                    }
+                },
+                ["Legs"]: {
+                    Tab: 2,
+                    Import: async function(data, tabdata) {
+                        let same_legs = (data.SameBackLegs == false) ? false : true;
+
+                        await tabdata.SetSameBackLegs(same_legs);
+                        Utils.ImportSet(data.FrontLegAccessories, tabdata.FrontLegAccessories);
+
+                        if (!same_legs) {
+                            Utils.ImportSet(data.BackLegAccessories, tabdata.BackLegAccessories);
+                        }
+                    },
+                    Export: async function(tabdata) {
+                        let exported = {};
+
+                        if (tabdata.FrontLegAccessories.Type > 0) {
+                            exported.FrontLegAccessories = Utils.ExportSet(tabdata.FrontLegAccessories);
+                        }
+
+                        if (!tabdata.GetSameBackLegs()) {
+                            exported.SameBackLegs = false;
+                        }
+
+                        if (!tabdata.GetSameBackLegs()) {
+                            if (tabdata.BackLegAccessories.Type > 0) {
+                                exported.BackLegAccessories = Utils.ExportSet(tabdata.BackLegAccessories);
+                            }
+                        }
+
+                        return exported;
+                    },
+                    SetupFunctions: async function(container) {
+                        let setup = {};
+
+                        setup.FrontLegAccessories = Utils.DefineSet(container, "Front leg accessories");
+
+                        let same_back_legs = container.querySelector("div").querySelector("div:scope > div > div > check-box");
+                        Utils.DefineCheckbox(setup, "SameBackLegs", same_back_legs);
+
+                        setup.SetSameBackLegs = (value) => {
+                            Utils.SetCheckbox(same_back_legs, value);
+
+                            return new Promise(function(resolve) {
+                                resolve();
+                            }).then(() => {
+                                if (!value) {
+                                    setup.BackLegAccessories = Utils.DefineSet(container, "Back leg accessories");
+                                } else {
+                                    setup.BackLegAccessories = null;
+                                }
+                            });
+                        };
+
+                        setup.GetSameBackLegs = () => {
+                            return Utils.IsCheckboxChecked(same_back_legs);
+                        };
+
+                        if (!Utils.IsCheckboxChecked(same_back_legs)) {
+                            setup.BackLegAccessories = Utils.DefineSet(container, "Back leg accessories");
+                        }
+
+                        return setup;
+                    }
+                },
+                ["Chest"]: {
+                    Container: null,
+                    Tab: 3,
+                    Import: async function(data, tabdata) {
+                        Utils.ImportSet(data.ChestAccessories, tabdata.ChestAccessories);
+
+                        // I know.
+                        if (tabdata.ChestAccessories.Type > 1) {
+                            let sleeves = Utils.DefineSet(this.Container, "Sleeves");
+                            Utils.ImportSet(data.Sleeves, sleeves);
+                        }
+                    },
+                    Export: async function(tabdata) {
+                        let exported = {};
+
+                        if (tabdata.ChestAccessories.Type > 0) {
+                            exported.ChestAccessories = Utils.ExportSet(tabdata.ChestAccessories);
+                            if (tabdata.ChestAccessories.Type > 1) {
+                                exported.Sleeves = Utils.ExportSet(tabdata.Sleeves);
+                            }
+                        }
+
+                        return exported;
+                    },
+                    SetupFunctions: async function(container) {
+                        this.Container = container;
+
+                        let setup = {};
+
+                        setup.ChestAccessories = Utils.DefineSet(container, "Chest accessories");
+                        setup.Sleeves = Utils.DefineSet(container, "Sleeves");
+
+                        return setup;
+                    }
+                },
+                ["Back"]: {
+                    Tab: 4,
+                    Import: async function(data, tabdata) {
+                        Utils.ImportSet(data.BackAccessories, tabdata.BackAccessories);
+                    },
+                    Export: async function(tabdata) {
+                        let exported = {};
+
+                        if (tabdata.BackAccessories.Type > 0) {
+                            exported.BackAccessories = Utils.ExportSet(tabdata.BackAccessories);
+                        }
+                        return exported;
+                    },
+                    SetupFunctions: async function(container) {
+                        let setup = {};
+
+                        setup.BackAccessories = Utils.DefineSet(container, "Back accessories");
+
+                        return setup;
+                    }
+                },
+                ["Waist"]: {
+                    Tab: 5,
+                    Import: async function(data, tabdata) {
+                        Utils.ImportSet(data.WaistAccessories, tabdata.WaistAccessories);
+                    },
+                    Export: async function(tabdata) {
+                        let exported = {};
+
+                        if (tabdata.WaistAccessories.Type > 0) {
+                            exported.WaistAccessories = Utils.ExportSet(tabdata.WaistAccessories);
+                        }
+
+                        return exported;
+                    },
+                    SetupFunctions: async function(container) {
+                        let setup = {};
+
+                        setup.WaistAccessories = Utils.DefineSet(container, "Waist accessories");
+
+                        return setup;
+                    }
+                },
+                ["Other"]: {
+                    Tab: 6,
+                    Import: async function(data, tabdata) {
+                        Utils.ImportSet(data.ExtraAccessories, tabdata.ExtraAccessories);
+                    },
+                    Export: async function(tabdata) {
+                        let exported = {};
+
+                        let extra = Utils.ExportSet(tabdata.ExtraAccessories);
+                        if (Object.keys(extra).length > 0) {
+                            exported.ExtraAccessories = extra;
+                        }
+
+                        return exported;
+                    },
+                    SetupFunctions: async function(container) {
+                        let setup = {};
+
+                        setup.ExtraAccessories = Utils.DefineSet(container, "Extra accessories");
+
+                        return setup;
+                    }
+                }
+            },
+            Import: async function(data, tabdata) {
+                let exported = {};
+
+                for (let i in this.TabFunctions) {
+                    let v = this.TabFunctions[i];
+                    debug("> Importing tab #" + i + " (" + i + ")...");
+
+                    let localdata = data[i] || {};
+                    await v.Import(localdata, await PonyTown.SetAccessoryTab(v.Tab));
+                }
+
+                return exported;
+            },
+            Export: async function(tabdata) {
+                let exported = {};
+                for (var i in this.TabFunctions) {
+                    let v = this.TabFunctions[i];
+                    debug("> Exporting tab #" + i + " (" + i + ")...");
+                    let data = await v.Export(await PonyTown.SetAccessoryTab(v.Tab));
+                    if (Object.keys(data).length > 0) {
+                        exported[i] = data;
+                    }
+                }
+                return exported;
+            },
+            SetupFunctions: async function(container) {
+                let current_tab = PonyTown.GetAccessoryTab();
+
+                for (let i in this.TabFunctions) {
+                    let v = this.TabFunctions[i];
+
+                    if (v.Tab === current_tab) {
+                        let _container = container.querySelector("tab.active.tab-pane");
+                        return await v.SetupFunctions(_container);
+                    }
                 }
             }
         }
     };
 
     var Character = {
-        FunctionsSet: false,
-        SetupFunctions: async function() {
-            for (let i in this.IOFunctions) {
-                let v = this.IOFunctions[i];
-                if (v.Tab === Utils.GetTab()) {
-                    this.TabData = await v.SetupFunctions(document);
-                    return;
-                }
-            }
-            Character.TabData = null;
-        },
-        IOFunctions: [{
-                PrintName: "Body",
-                Tab: 0,
-                Import: async function(data, tabdata) {
-                    tabdata.Color = exists(data.Color) ? data.Color : "ffffff";
-                    tabdata.Outline = exists(data.Outline) ? data.Outline : "000000";
-
-                    // Horn.
-                    Utils.ImportBlock(data.Horn, tabdata.Horn);
-
-                    // Wings.
-                    Utils.ImportBlock(data.Wings, tabdata.Wings);
-
-                    // Ears.
-                    Utils.ImportBlock(data.Ears, tabdata.Ears)
-
-                    // Front hooves.
-                    Utils.ImportBlock(data.FrontHooves, tabdata.FrontHooves);
-
-                    // Back hooves.
-                    Utils.ImportBlock(data.BackHooves, tabdata.BackHooves);
-
-                    // Buttmark
-                    tabdata.Buttmark = data.Buttmark;
-                    tabdata.FlipButtmark = exists(data.FlipButtmark) ? data.FlipButtmark : false;
-                },
-                Export: async function(tabdata) {
-                    let exported = {};
-
-                    if (tabdata.GetCustomOutlines()) {
-                        exported.OutlinesEnabled = tabdata.GetCustomOutlines();
-                    }
-                    if (tabdata.Color !== "ffffff") {
-                        exported.Color = tabdata.Color;
-                    }
-                    if (exists(tabdata.Outline) && tabdata.Outline !== "000000") {
-                        exported.Outline = tabdata.Outline;
-                    }
-
-                    // Horn
-                    if (tabdata.Horn.Type > 0) {
-                        Utils.ExportBlock(tabdata.Horn, exported.Horn = {});
-                    }
-
-                    // Wings
-                    if (tabdata.Wings.Type > 0) {
-                        Utils.ExportBlock(tabdata.Wings, exported.Wings = {});
-                    }
-
-                    // Ears
-                    if (tabdata.Ears.Type > 0) {
-                        Utils.ExportBlock(tabdata.Ears, exported.Ears = {});
-                    }
-
-                    // Front hooves
-                    if (tabdata.FrontHooves.Type > 0) {
-                        Utils.ExportBlock(tabdata.FrontHooves, exported.FrontHooves = {});
-                    }
-
-                    // Back hooves
-                    if (tabdata.BackHooves.Type > 0) {
-                        Utils.ExportBlock(tabdata.BackHooves, exported.BackHooves = {});
-                    }
-
-                    // Buttmark
-                    let mark = tabdata.Buttmark;
-                    if (!mark.every((e) => e === "")) {
-                        exported.Buttmark = mark;
-                    }
-                    if (tabdata.FlipButtmark) {
-                        exported.FlipButtmark = true;
-                    }
-
-                    return exported;
-                },
-                GetButtmark: function(container) {
-                    let element = container.querySelector("bitmap-box");
-                    if (element.tagName == "BITMAP-BOX") {
-                        element = element.children[0];
-
-                        let pixels = [];
-
-                        let rows = element.children;
-
-                        let rgb2hex = function(rgb) {
-                            if (/^#[0-9A-F]{6}$/i.test(rgb)) return rgb;
-
-                            rgb = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
-
-                            function hex(x) {
-                                return ("0" + parseInt(x).toString(16)).slice(-2);
-                            }
-                            return hex(rgb[1]) + hex(rgb[2]) + hex(rgb[3]);
-                        };
-
-                        let count = 0;
-                        for (var i = 0; i < rows.length; i++) {
-                            let bits = rows[i].children;
-                            for (var j = 0; j < rows.length; j++) {
-                                pixels[count++] = bits[j].style.backgroundColor !== "" ? rgb2hex(bits[j].style.backgroundColor) : "";
-                            }
-                        }
-                        return pixels;
-                    }
-                },
-                SetButtmark: function(container, pixels) {
-                    let element = container.querySelector("bitmap-box");
-                    if (exists(element)) {
-                        element = element.children[0];
-
-                        Utils.EraseButtmark();
-
-                        if (!exists(pixels)) { return; }
-                        if (pixels.every((e) => e === "")) { return; }
-
-                        Utils.PickBrush();
-
-                        let rows = element.children;
-                        let count = 0;
-                        for (var i = 0; i < rows.length; i++) {
-                            let bits = rows[i].children;
-                            for (var j = 0; j < rows.length; j++) {
-                                if (pixels[count] !== "") {
-                                    Utils.SetPixel(bits[j], pixels[count]);
-                                }
-                                count++;
-                            }
-                        }
-                        return pixels;
-                    }
-                },
-                SetupFunctions: async function(container) {
-                    let setup = {};
-
-                    let tab = container.querySelector('[heading="body"]');
-                    let checkboxes = tab.querySelectorAll('check-box');
-                    let colorpickers = tab.querySelectorAll('color-picker');
-
-                    checkboxes[0].addEventListener("click", Character.OutlineChanged, true);
-                    setup.SetCustomOutlines = (value) => {
-                        Utils.SetCheckbox(checkboxes[0], value);
-                    };
-
-                    setup.GetCustomOutlines = () => {
-                        return Utils.IsCheckboxChecked(checkboxes[0]);
-                    }
-
-                    Utils.DefineColorPicker(setup, "Color", colorpickers[0]);
-                    Utils.DefineColorPicker(setup, "Outline", colorpickers[1]);
-
-                    Utils.DefineSet(tab, "Horn", setup.Horn = {});
-                    Utils.DefineSet(tab, "Wings", setup.Wings = {});
-                    Utils.DefineSet(tab, "Ears", setup.Ears = {});
-                    Utils.DefineSet(tab, "Front hooves", setup.FrontHooves = {});
-                    Utils.DefineSet(tab, "Back hooves", setup.BackHooves = {});
-
-                    let io = this;
-                    Object.defineProperty(setup, "Buttmark", {
-                        get: function() {
-                            return io.GetButtmark(tab);
-                        },
-                        set: function(value) {
-                            io.SetButtmark(tab, value);
-                            return true;
-                        }
-                    });
-
-                    let labels = document.querySelectorAll("label");
-                    let flip_checkbox = [].filter.call(labels, function(element) {
-                        return element.innerHTML.search("don't") != -1;
-                    })[0].parentNode.querySelector("check-box");
-
-                    Utils.DefineCheckbox(setup, "FlipButtmark", flip_checkbox);
-
-                    return setup;
-                }
-            },
-            {
-                PrintName: "Mane",
-                Tab: 1,
-                Import: async function(data, tabdata) {
-                    Utils.ImportBlock(data.Mane, tabdata.Mane);
-                    Utils.ImportBlock(data.Backmane, tabdata.Backmane);
-                },
-                Export: async function(tabdata) {
-                    let exported = {};
-
-                    if (tabdata.Mane.Type > 0) {
-                        Utils.ExportBlock(tabdata.Mane, exported.Mane = {});
-                    }
-
-                    if (tabdata.Backmane.Type > 0) {
-                        Utils.ExportBlock(tabdata.Backmane, exported.Backmane = {});
-                    }
-
-                    return exported;
-                },
-                SetupFunctions: async function(container) {
-                    let setup = {};
-                    let tab = container.querySelector('[heading="mane"]');
-
-                    Utils.DefineSet(tab, "Mane", setup.Mane = {});
-                    Utils.DefineSet(tab, "Back mane", setup.Backmane = {});
-
-                    return setup;
-                }
-            },
-            {
-                PrintName: "Tail",
-                Tab: 2,
-                Import: async function(data, tabdata) {
-                    Utils.ImportBlock(data.Tail, tabdata.Tail);
-                },
-                Export: async function(tabdata) {
-                    let exported = {};
-
-                    if (tabdata.Tail.Type > 0) {
-                        Utils.ExportBlock(tabdata.Tail, exported.Tail = {});
-                    }
-
-                    return exported;
-                },
-                SetupFunctions: async function(container) {
-                    let setup = {};
-
-                    let tab = container.querySelector('[heading="tail"]');
-
-                    Utils.DefineSet(tab, "Tail", setup.Tail = {});
-
-                    return setup;
-                }
-            },
-            {
-                PrintName: "Face",
-                Tab: 3,
-                Import: async function(data, tabdata) {
-                    tabdata.EyeColor = exists(data.EyeColor) ? data.EyeColor : "000000";
-                    tabdata.EyeColorLeft = exists(data.EyeColorLeft) ? data.EyeColorLeft : null;
-                    tabdata.EyeWhitesColor = exists(data.EyeWhitesColor) ? data.EyeWhitesColor : "ffffff";
-
-                    tabdata.Eyes = exists(data.Eyes) ? data.Eyes : 0;
-                    tabdata.LeftEye = exists(data.LeftEye) ? data.LeftEye : null;
-
-                    tabdata.Eyeshadow = exists(data.Eyeshadow) ? data.Eyeshadow : null;
-                    tabdata.Eyelashes = exists(data.Eyelashes) ? data.Eyelashes : 0;
-
-                    tabdata.Expression = exists(data.Expression) ? data.Expression : 0;
-                    tabdata.Fangs = exists(data.Fangs) ? data.Fangs : 0;
-
-                    if (exists(data.Markings)) {
-                        tabdata.Markings = exists(data.Markings) ? data.Markings : 0;
-                        tabdata.MarkingsColor = exists(data.MarkingsColor) ? data.MarkingsColor : 0;
-                    } else {
-                        tabdata.Markings = 0;
-                    }
-
-                    Utils.ImportBlock(data.FacialHair, tabdata.FacialHair);
-
-                    Utils.ImportBlock(data.Muzzle, tabdata.Muzzle);
-                },
-                Export: async function(tabdata) {
-                    let exported = {};
-
-                    if (tabdata.EyeColor !== "000000") {
-                        exported.EyeColor = tabdata.EyeColor;
-                    }
-
-                    if (exists(tabdata.EyeColorLeft)) {
-                        exported.EyeColorLeft = tabdata.EyeColorLeft;
-                    }
-
-                    if (tabdata.EyeWhitesColor !== "ffffff") {
-                        exported.EyeWhitesColor = tabdata.EyeWhitesColor;
-                    }
-
-                    if (tabdata.Eyes !== 0) {
-                        exported.Eyes = tabdata.Eyes;
-                    }
-
-                    if (exists(tabdata.LeftEye)) {
-                        exported.LeftEye = tabdata.LeftEye;
-                    }
-
-                    if (exists(tabdata.Eyeshadow)) {
-                        exported.Eyeshadow = tabdata.Eyeshadow;
-                    }
-
-                    if (tabdata.Eyelashes > 0) {
-                        exported.Eyelashes = tabdata.Eyelashes;
-                    }
-
-                    let muzzle = {};
-                    Utils.ExportBlock(tabdata.Muzzle, muzzle);
-                    if (Object.keys(muzzle).length > 0) {
-                        exported.Muzzle = muzzle;
-                    }
-
-                    if (tabdata.Expression > 0) {
-                        exported.Expression = tabdata.Expression;
-                    }
-
-                    if (tabdata.Fangs > 0) {
-                        exported.Fangs = tabdata.Fangs;
-                    }
-
-                    if (tabdata.Markings > 0) {
-                        exported.Markings = tabdata.Markings;
-                        exported.MarkingsColor = tabdata.MarkingsColor;
-                    }
-
-                    if (tabdata.FacialHair.Type > 0) {
-                        Utils.ExportBlock(tabdata.FacialHair, exported.FacialHair = {});
-                    }
-
-                    return exported;
-                },
-                SetupFunctions: async function(container) {
-                    let setup = {};
-                    let tab = container.querySelector('[heading="face"]');
-                    let tab_elements = tab.children[0].children[0].children;
-
-                    let n = 0;
-
-                    // 1. Eye color.
-                    Utils.DefineColorPicker(setup, "EyeColor", tab_elements[n++].querySelector("color-picker"));
-
-                    // 2. Left eye color.
-                    Utils.DefineColorPicker(setup, "LeftEyeColor", tab_elements[n++].querySelector("color-picker"));
-
-                    // 3. Eye whites color.
-                    Utils.DefineColorPicker(setup, "EyeWhitesColor", tab_elements[n++].querySelector("color-picker"));
-
-                    // 4. Eyes (Right). It wouldn't be tricky without that.
-                    let right_eye_selection = tab_elements[n++].querySelector("sprite-selection");
-                    Utils.DefineSpriteSelection(setup, "Eyes", right_eye_selection);
-                    Utils.DefineSpriteSelection(setup, "RightEye", right_eye_selection);
-
-                    // 5. Eye (Left).
-                    let right_eye_checkbox = right_eye_selection.parentNode.parentNode.querySelector("check-box");
-                    let get_left_eye_selector = function() {
-                        let elements = tab.children[0].children[0].children;
-                        let div = null;
-                        for (var i = 0; i < elements.length; i++) {
-                            if (elements[i] == right_eye_selection.parentNode.parentNode) {
-                                return elements[i + 1].querySelector("sprite-selection");
-                            }
-                        }
-                    };
-                    Object.defineProperty(setup, "LeftEye", {
-                        get: function() {
-                            if (!Utils.IsCheckboxChecked(right_eye_checkbox)) {
-                                return Utils.GetSelectedSprite(get_left_eye_selector());
-                            }
-                        },
-                        set: function(value) {
-                            if (value === null) {
-                                Utils.SetCheckbox(right_eye_checkbox, true);
-                                return true;
-                            }
-
-                            Utils.SetCheckbox(right_eye_checkbox, false);
-                            return Utils.SetSelectedSprite(get_left_eye_selector(), value);
-                            return true;
-                        }
-                    });
-
-                    // We'll go from the end now.
-                    n = tab_elements.length - 1;
-
-                    // 14. Facial hair
-                    n--;
-
-                    // 13. HR.
-                    n--;
-
-                    // 12. Markings color.
-                    Utils.DefineColorPicker(setup, "MarkingsColor", tab_elements[n--].querySelector("color-picker"));
-
-                    // 12. Markings.
-                    Utils.DefineSpriteSelection(setup, "Markings", tab_elements[n--].querySelector("sprite-selection"));
-
-                    // 11. Fangs.
-                    Utils.DefineSpriteSelection(setup, "Fangs", tab_elements[n--].querySelector("sprite-selection"));
-
-                    // 10. Expression.
-                    Utils.DefineSpriteSelection(setup, "Expression", tab_elements[n--].querySelector("sprite-selection"));
-
-                    // 9. Muzzle.
-                    n--;
-
-                    // 8. HR.
-                    n--;
-
-                    // 7. Eyelashes.
-                    Utils.DefineSpriteSelection(setup, "Eyelashes", tab_elements[n--].querySelector("sprite-selection"));
-
-                    // 6. Eyeshadow.
-                    Utils.DefineColorPicker(setup, "Eyeshadow", tab_elements[n--].querySelector("color-picker"));
-
-                    // Muzzle set
-                    Utils.DefineSet(tab, "Muzzle", setup.Muzzle = {});
-
-                    Utils.DefineSet(tab, "Facial hair", setup.FacialHair = {});
-
-                    return setup;
-                }
-            },
-            {
-                Container: null,
-                PrintName: "Other",
-                Tab: 4,
-                IOFunctions: [{
-                        PrintName: "Head",
-                        Tab: 0,
-                        Import: async function(data, tabdata) {
-                            Utils.ImportBlock(data.HeadAccessories, tabdata.HeadAccessories);
-                            Utils.ImportBlock(data.EarAccessories, tabdata.EarAccessories);
-                            Utils.ImportBlock(data.FaceAccessories, tabdata.FaceAccessories);
-                        },
-                        Export: async function(tabdata) {
-                            let exported = {};
-
-                            if (tabdata.HeadAccessories.Type > 0) {
-                                Utils.ExportBlock(tabdata.HeadAccessories, exported.HeadAccessories = {});
-                            }
-                            if (tabdata.EarAccessories.Type > 0) {
-                                Utils.ExportBlock(tabdata.EarAccessories, exported.EarAccessories = {});
-                            }
-                            if (tabdata.FaceAccessories.Type > 0) {
-                                Utils.ExportBlock(tabdata.FaceAccessories, exported.FaceAccessories = {});
-                            }
-
-                            return exported;
-                        },
-                        SetupFunctions: async function(container) {
-                            let setup = {};
-
-                            let tab = container.querySelector('[heading="head"]');
-
-                            Utils.DefineSet(tab, "Head accessories", setup.HeadAccessories = {});
-                            Utils.DefineSet(tab, "Ear accessories", setup.EarAccessories = {});
-                            Utils.DefineSet(tab, "Face accessories", setup.FaceAccessories = {});
-
-                            return setup;
-                        }
-                    },
-                    {
-                        PrintName: "Neck",
-                        Tab: 1,
-                        Import: async function(data, tabdata) {
-                            Utils.ImportBlock(data.NeckAccessories, tabdata.NeckAccessories);
-                        },
-                        Export: async function(tabdata) {
-                            let exported = {};
-
-                            if (tabdata.NeckAccessories.Type > 0) {
-                                Utils.ExportBlock(tabdata.NeckAccessories, exported.NeckAccessories = {});
-                            }
-
-                            return exported;
-                        },
-                        SetupFunctions: async function(container) {
-                            let setup = {};
-                            let tab = container.querySelector('[heading="neck"]');
-
-                            Utils.DefineSet(tab, "Neck accessories", setup.NeckAccessories = {});
-
-                            return setup;
-                        }
-                    },
-                    {
-                        PrintName: "Legs",
-                        Tab: 2,
-                        Import: async function(data, tabdata) {
-                            let same_legs = exists(data.SameBackLegs) ? data.SameBackLegs : true;
-                            await tabdata.SetSameBackLegs(same_legs);
-                            Utils.ImportBlock(data.FrontLegAccessories, tabdata.FrontLegAccessories);
-
-                            if (!same_legs) {
-                                Utils.ImportBlock(data.BackLegAccessories, tabdata.BackLegAccessories);
-                            }
-                        },
-                        Export: async function(tabdata) {
-                            let exported = {};
-
-                            if (tabdata.FrontLegAccessories.Type > 0) {
-                                Utils.ExportBlock(tabdata.FrontLegAccessories, exported.FrontLegAccessories = {});
-                            }
-
-                            if (!tabdata.GetSameBackLegs()) {
-                                exported.SameBackLegs = false;
-                            }
-
-                            if (!tabdata.GetSameBackLegs()) {
-                                if (tabdata.BackLegAccessories.Type > 0) {
-                                    Utils.ExportBlock(tabdata.BackLegAccessories, exported.BackLegAccessories = {});
-                                }
-                            }
-
-                            return exported;
-                        },
-                        SetupFunctions: async function(container) {
-                            let setup = {};
-
-                            let tab = container.querySelector('[heading="legs"]');
-
-                            Utils.DefineSet(tab, "Front leg accessories", setup.FrontLegAccessories = {});
-
-                            let same_back_legs = tab.querySelector("div").querySelector("div:scope > div > div > check-box");
-                            Utils.DefineCheckbox(setup, "SameBackLegs", same_back_legs);
-
-                            setup.SetSameBackLegs = (value) => {
-                                Utils.SetCheckbox(same_back_legs, value);
-
-                                return new Promise(function(resolve) {
-                                    resolve();
-                                }).then(() => {
-                                    if (!value) {
-                                        Utils.DefineSet(tab, "Back leg accessories", setup.BackLegAccessories = {});
-                                    } else {
-                                        setup.BackLegAccessories = null;
-                                    }
-                                });
-                            };
-
-                            setup.GetSameBackLegs = () => {
-                                return Utils.IsCheckboxChecked(same_back_legs);
-                            };
-
-                            if (!Utils.IsCheckboxChecked(same_back_legs)) {
-                                Utils.DefineSet(tab, "Back leg accessories", setup.BackLegAccessories = {});
-                            }
-
-                            return setup;
-                        }
-                    },
-                    {
-                        Container: null,
-                        PrintName: "Chest",
-                        Tab: 3,
-                        Import: async function(data, tabdata) {
-                            Utils.ImportBlock(data.ChestAccessories, tabdata.ChestAccessories);
-
-                            // I know.
-                            if (tabdata.ChestAccessories.Type > 1) {
-                                let tab = this.Container.querySelector('[heading="chest"]');
-                                let tabdata = {};
-                                Utils.DefineSet(tab, "Sleeves", tabdata.Sleeves = {}, true);
-
-                                Utils.ImportBlock(data.Sleeves, tabdata.Sleeves);
-                            }
-                        },
-                        Export: async function(tabdata) {
-                            let exported = {};
-
-                            if (tabdata.ChestAccessories.Type > 0) {
-                                Utils.ExportBlock(tabdata.ChestAccessories, exported.ChestAccessories = {});
-                                if (tabdata.ChestAccessories.Type > 1) {
-                                    Utils.ExportBlock(tabdata.Sleeves, exported.Sleeves = {});
-                                }
-                            }
-
-                            return exported;
-                        },
-                        SetupFunctions: async function(container) {
-                            this.Container = container;
-
-                            let setup = {};
-                            let tab = container.querySelector('[heading="chest"]');
-
-                            Utils.DefineSet(tab, "Chest accessories", setup.ChestAccessories = {});
-                            Utils.DefineSet(tab, "Sleeves", setup.Sleeves = {}, true);
-
-                            return setup;
-                        }
-                    },
-                    {
-                        PrintName: "Back",
-                        Tab: 4,
-                        Import: async function(data, tabdata) {
-                            Utils.ImportBlock(data.BackAccessories, tabdata.BackAccessories);
-                        },
-                        Export: async function(tabdata) {
-                            let exported = {};
-
-                            if (tabdata.BackAccessories.Type > 0) {
-                                Utils.ExportBlock(tabdata.BackAccessories, exported.BackAccessories = {});
-                            }
-                            return exported;
-                        },
-                        SetupFunctions: async function(container) {
-                            let setup = {};
-                            let tab = container.querySelector('[heading="back"]');
-
-                            Utils.DefineSet(tab, "Back accessories", setup.BackAccessories = {});
-
-                            return setup;
-                        }
-                    },
-                    {
-                        PrintName: "Waist",
-                        Tab: 5,
-                        Import: async function(data, tabdata) {
-                            Utils.ImportBlock(data.WaistAccessories, tabdata.WaistAccessories);
-                        },
-                        Export: async function(tabdata) {
-                            let exported = {};
-
-                            if (tabdata.WaistAccessories.Type > 0) {
-                                Utils.ExportBlock(tabdata.WaistAccessories, exported.WaistAccessories = {});
-                            }
-
-                            return exported;
-                        },
-                        SetupFunctions: async function(container) {
-                            let setup = {};
-                            let tab = container.querySelector('[heading="waist"]');
-
-                            Utils.DefineSet(tab, "Waist accessories", setup.WaistAccessories = {});
-
-                            return setup;
-                        }
-                    },
-                    {
-                        PrintName: "Other",
-                        Tab: 6,
-                        Import: async function(data, tabdata) {
-                            Utils.ImportBlock(data.ExtraAccessories, tabdata.ExtraAccessories);
-                        },
-                        Export: async function(tabdata) {
-                            let exported = {};
-
-                            let extra = {}
-                            Utils.ExportBlock(tabdata.ExtraAccessories, extra);
-                            if (Object.keys(extra).length > 0) {
-                                exported.ExtraAccessories = extra;
-                            }
-
-                            return exported;
-                        },
-                        SetupFunctions: async function(container) {
-                            let setup = {};
-                            let tab = container.querySelector('[heading="other"]');
-
-                            Utils.DefineSet(tab, "Extra accessories", setup.ExtraAccessories = {});
-
-                            return setup;
-                        }
-                    }
-                ],
-                Import: async function(data, tabdata) {
-                    let exported = {};
-
-                    for (let i in this.IOFunctions) {
-                        let v = this.IOFunctions[i];
-                        // console.log("> Importing tab #" + i + " (" + v.PrintName + ")...");
-                        await this.SetTab(v.Tab);
-
-                        let localdata = exists(data[v.PrintName]) ? data[v.PrintName] : {};
-                        let tabdata = Character.TabData;
-                        await v.Import(localdata, tabdata);
-                    }
-
-                    return exported;
-                },
-                Export: async function(tabdata) {
-                    let exported = {};
-                    for (var i in this.IOFunctions) {
-                        let v = this.IOFunctions[i];
-                        // console.log("> Exporting tab #" + i + " (" + v.PrintName + ")...");
-                        await this.SetTab(v.Tab);
-
-                        let tabdata = Character.TabData;
-
-                        let data = await v.Export(tabdata);
-                        if (Object.keys(data).length > 0) {
-                            exported[v.PrintName] = data;
-                        }
-                    }
-                    return exported;
-                },
-                SetTab: async function(tab) {
-                    if (!exists(this.Container)) { return; }
-
-                    let pills = this.Container.querySelector("ul.nav-tabs");
-                    let hrefs = pills.querySelectorAll('a');
-                    if (typeof(tab) == "string") {
-                        tab = tab.toLowerCase();
-
-                        let i;
-                        for (i = 0; i < hrefs.length; i++) {
-                            if (hrefs[i].querySelector("span").innerHTML.search(tab) != -1) {
-                                tab = i;
-                                break;
-                            }
-                        }
-
-                        if (!exists(i)) { return; }
-                    }
-                    if (hrefs[tab].className.search("active") == -1) {
-                        hrefs[tab].dispatchEvent(clickEvent);
-                    }
-
-                    await Character.SetupFunctions();
-                },
-                GetTab: async function() {
-                    if (!exists(this.Container)) { return; }
-
-                    let pills = this.Container.querySelector("ul.nav-tabs");
-                    let hrefs = pills.querySelectorAll('a');
-
-                    for (var i = 0; i < hrefs.length; i++) {
-                        if (hrefs[i].className.search("active") != -1) {
-                            return i;
-                        }
-                    }
-                },
-                SetupFunctions: async function(container) {
-                    let tab = container.querySelector('[heading="other"]');
-                    this.Container = container;
-                    let current_tab = await this.GetTab();
-                    for (let i in this.IOFunctions) {
-                        let v = this.IOFunctions[i];
-
-                        if (v.Tab === current_tab) {
-                            return await v.SetupFunctions(tab);
-                        }
-                    }
-                }
-            }
-        ],
         Export: async function() {
             let data = {};
 
-            for (var i in Character.IOFunctions) {
-                let v = Character.IOFunctions[i];
-                // console.log("Exporting tab #" + i + " (" + v.PrintName + ")...");
-                await Utils.SetTab(v.Tab);
+            for (var i in TabFunctions) {
+                let v = TabFunctions[i];
+                debug("Exporting tab #" + i + " (" + i + ")...");
 
-                let tabdata = Character.TabData;
-
-                let exported = await v.Export(tabdata);
+                let exported = await v.Export(await PonyTown.SetTab(v.Tab));
                 if (Object.keys(exported).length > 0) {
-
-                    data[v.PrintName] = exported;
+                    data[i] = exported;
                 }
             }
-            await Utils.SetTab(0);
+            await PonyTown.SetTab(0);
 
             return data;
         },
         Import: async function(data) {
             data = JSON.parse(data);
-            data.Body = exists(data.Body) ? data.Body : {};
+            data.Body = data.Body || {};
 
-            await Utils.SetTab(0);
-            await Sleep(250);
-            let outlines_enabled = exists(data.Body.OutlinesEnabled) ? data.Body.OutlinesEnabled : false;
-            await Character.TabData.SetCustomOutlines(outlines_enabled);
+            (await PonyTown.SetTab(0)).CustomOutlines = data.Body.OutlinesEnabled || false;
+            await skipFrame();
 
-            for (var i in Character.IOFunctions) {
-                let v = Character.IOFunctions[i];
-                // console.log("Importing tab #" + i + " (" + v.PrintName + ")...");
-                await Utils.SetTab(v.Tab);
+            for (var i in TabFunctions) {
+                let v = TabFunctions[i];
+                debug("Importing tab #" + i + " (" + i + ")...");
 
-
-                let localdata = exists(data[v.PrintName]) ? data[v.PrintName] : {};
-                let tabdata = Character.TabData;
-                await v.Import(localdata, tabdata);
+                let localdata = data[i] || {};
+                await v.Import(localdata, await PonyTown.SetTab(v.Tab));
             }
-            await Utils.SetTab(0);
+            await PonyTown.SetTab(0);
         }
     };
 
@@ -1278,7 +1189,7 @@
 		</div>
 		`,
         InjectHTML: function() {
-            if (!exists(this.InjectedCSSTag)) {
+            if (!this.InjectedCSSTag) {
                 let head = document.querySelector("head");
                 let css = this.InjectedCSSTag = document.createElement("style");
                 css.type = "text/css";
@@ -1287,7 +1198,7 @@
                 head.appendChild(css);
             }
 
-            if (!exists(this.Overlay)) {
+            if (!this.Overlay) {
                 let body = document.querySelector("body");
                 let e = this.Overlay = document.createElement("div");
                 e.style.display = 'none';
@@ -1296,7 +1207,7 @@
                 body.appendChild(e);
             }
 
-            if (!exists(this.ImportDialog)) {
+            if (!this.ImportDialog) {
                 let e = this.ImportDialog = document.createElement("div");
                 e.style.display = 'none';
                 e.classList.add("form");
@@ -1328,7 +1239,7 @@
                 this.Overlay.appendChild(e);
             }
 
-            if (!exists(this.ExportDialog)) {
+            if (!this.ExportDialog) {
                 let e = this.ExportDialog = document.createElement("div");
                 e.style.display = 'none';
                 e.classList.add("form");
@@ -1351,7 +1262,7 @@
         },
         ShowImport: function() {
             this.InjectHTML();
-            if (!exists(this.Overlay) || !exists(this.ImportDialog)) {
+            if (!this.Overlay || !this.ImportDialog) {
                 return;
             }
 
@@ -1371,7 +1282,7 @@
         },
         ShowExport: async function() {
             this.InjectHTML();
-            if (!exists(this.Overlay) || !exists(this.ImportDialog)) {
+            if (!this.Overlay || !this.ExportDialog) {
                 return;
             }
 
@@ -1418,7 +1329,7 @@
     // --
 
     var InjectBodyTab = function() {
-        if (Utils.GetTab() === 0) {
+        if (PonyTown.GetTab() === 0) {
             let bodyTab = document.querySelector('[heading="body"]');
 
             if (bodyTab === null) return;
@@ -1460,9 +1371,9 @@
             FormBody.append(ButtonGroup);
 
             let version = document.querySelector("footer.app-footer > div.clearfix > div.float-left.text-muted.text-nowrap");
-            if (!exists(version) || (exists(version.children[0]) && version.children[0].innerHTML != targetPonyTownVersion)) {
+            if (!version || (version.children[0] && version.children[0].innerHTML != targetPonyTownVersion)) {
                 let div = document.createElement("div");
-                div.innerHTML = "Careful! I/E wasn't tested to work with current version.";
+                div.innerHTML = "Hold on! I/E wasn't tested to work with current version";
 
                 let anchor = document.createElement("a");
                 anchor.setAttribute("target", "_blank");
@@ -1483,7 +1394,7 @@
         for (var i = 0; i < mutations.length; i++) {
             let element = mutations[i].target;
             if (mutations[i].removedNodes.length === 0 && element.tagName == "TAB") {
-                if (exists(element.getAttribute("heading")) && element.className.search("active") != 1) {
+                if (element.getAttribute("heading") && element.className.search("active") != 1) {
                     let pills = document.querySelector('ul.nav-pills');
                     let hrefs = pills.querySelectorAll('a');
 
@@ -1497,4 +1408,10 @@
         childList: true,
         subtree: true
     });
+
+    if (debugging) {
+        window.Character = Character;
+        window.Utils = Utils;
+        window.PonyTown = PonyTown;
+    }
 })();
