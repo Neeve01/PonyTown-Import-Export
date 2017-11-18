@@ -1,9 +1,9 @@
-﻿// ==UserScript==
+// ==UserScript==
 // @name        PonyTown Import/Export
 // @namespace   azedith
 // @include     https://pony.town/*
 // @author	@NotMyWing
-// @version     1
+// @version     0.28.4pre1
 // @grant       none
 // @downloadURL	https://github.com/Neeve01/PonyTown-Import-Export/raw/master/PonyTown_IE.user.js
 // ==/UserScript==
