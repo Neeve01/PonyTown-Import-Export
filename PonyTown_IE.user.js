@@ -1139,7 +1139,6 @@
                 let v = TabFunctions[i];
                 debug("Importing tab #" + i + " (" + i + ")...");
 
-                console.log(data[i]);
                 let localdata = data[i] || {};
                 await v.Import(localdata, await PonyTown.SetTab(v.Tab));
             }
@@ -1256,15 +1255,15 @@
                 e.classList.add("form");
                 e.innerHTML = this.ImportHTMLCode + this.FooterHTMLCode;
 
-                let button = e.querySelector("button");
-                button.onclick = function() { UI.StartImporting(); };
-
                 let textarea = this.ImportDialog.querySelector("textarea");
                 textarea.onkeypress = function(ev) {
                     if (ev.keyCode == 10 || (ev.ctrlKey && ev.keyCode == 13)) {
                         UI.StartImporting(textarea.value);
                     }
                 };
+
+                let button = e.querySelector("button");
+                button.onclick = function() { UI.StartImporting(textarea.value); };
 
                 var change = function() {
                     setTimeout(() => {
