@@ -92,11 +92,14 @@
 
                 if (divs[0] && divs[1]) {
                     let checkbox = divs[0].querySelector("check-box");
+
+                    let should_change = true;
                     if (checkbox) {
-                        this.SetCheckbox(checkbox, !!!color);
+                        should_change = !!color;
+                        this.SetCheckbox(checkbox, !should_change);
                     }
 
-                    if (color) {
+                    if (should_change) {
                         let picker = divs[1].querySelector("color-picker");
                         this.SetTextValue(picker, color || "FFFFFF");
                     }
@@ -104,11 +107,14 @@
 
                 if (divs[2] && divs[3]) {
                     let checkbox = divs[2].querySelector("check-box");
+
+                    let should_change = true;
                     if (checkbox) {
-                        this.SetCheckbox(checkbox, !!!outline);
+                        should_change = !!outline;
+                        this.SetCheckbox(checkbox, !should_change);
                     }
 
-                    if (outline) {
+                    if (should_change) {
                         let picker = divs[3].querySelector("color-picker");
                         this.SetTextValue(picker, outline || "000000");
                     }
@@ -181,7 +187,7 @@
 
                     let fill_outlines = set.querySelectorAll("fill-outline");
                     for (let i = 0; i < fill_outlines.length; i++) {
-                        utils.SetFillOutlineValues(fill_outlines[i], [colors[i] || null, outlines[i] || null]);
+                        utils.SetFillOutlineValues(fill_outlines[i], [colors[i], outlines[i]]);
                     }
                 }
             });
@@ -437,6 +443,11 @@
                 outlines = outlines.map((e) => { if (e === null) return ""; return e; })
                 out.Outlines = outlines;
             }
+
+            if (Object.keys(out).length === 0) {
+                return undefined;
+            }
+
             return out;
         }
     };
@@ -490,7 +501,7 @@
         ["Body"]: {
             Tab: 0,
             Import: async function(data, tabdata) {
-                tabdata.BodyColors = [data.Color || "ffffff", data.Outline || "000000"];
+                tabdata.BodyColors = [data.Color, data.Outline];
 
                 // Horn.
                 Utils.ImportSet(data.Horn, tabdata.Horn);
@@ -700,7 +711,7 @@
                 tabdata.EyeWhitesColor.Value = data.EyeWhitesColor || "ffffff";
 
                 let right = data.Eyes || 0;
-                let left = typeof(data.LeftEye) == "number" ? data.Number : null;
+                let left = typeof(data.LeftEye) == "number" ? data.LeftEye : null;
                 this.SetEyes([right, left]);
 
                 tabdata.Eyeshadow.Value = data.Eyeshadow || null;
@@ -752,10 +763,7 @@
                     exported.Eyelashes = tabdata.Eyelashes.Value;
                 }
 
-                let muzzle = Utils.ExportSet(tabdata.Muzzle);
-                if (Object.keys(muzzle).length > 0) {
-                    exported.Muzzle = muzzle;
-                }
+                exported.Muzzle = Utils.ExportSet(tabdata.Muzzle);
 
                 if (tabdata.Expression.Value > 0) {
                     exported.Expression = tabdata.Expression.Value;
@@ -795,15 +803,16 @@
                 let left = values[1] || null;
 
                 let [right_s, left_s] = this.GetEyeSelectors();
-                if (left) {
-                    right_s.Enabled = !!!left;
+                if (left !== null) {
+                    right_s.Checked = false;
                     [right_s, left_s] = this.GetEyeSelectors();
+
+                    left_s.Type = left;
+                } else {
+                    right_s.Checked = true;
                 }
 
                 right_s.Type = right;
-                if (left_s) {
-                    left_s.Type = left;
-                }
             },
             GetEyes: function() {
                 let [right_s, left_s] = this.GetEyeSelectors();
@@ -1044,10 +1053,7 @@
                     Export: async function(tabdata) {
                         let exported = {};
 
-                        let extra = Utils.ExportSet(tabdata.ExtraAccessories);
-                        if (Object.keys(extra).length > 0) {
-                            exported.ExtraAccessories = extra;
-                        }
+                        exported.ExtraAccessories = Utils.ExportSet(tabdata.ExtraAccessories);
 
                         return exported;
                     },
@@ -1074,16 +1080,19 @@
                 return exported;
             },
             Export: async function(tabdata) {
-                let exported = {};
+                let data = {};
                 for (var i in this.TabFunctions) {
                     let v = this.TabFunctions[i];
                     debug("> Exporting tab #" + i + " (" + i + ")...");
-                    let data = await v.Export(await PonyTown.SetAccessoryTab(v.Tab));
-                    if (Object.keys(data).length > 0) {
-                        exported[i] = data;
+                    let exported = await v.Export(await PonyTown.SetAccessoryTab(v.Tab));
+
+                    Object.keys(exported).forEach((key) => (exported[key] == null || exported[key] == undefined) && delete exported[key]);
+
+                    if (Object.keys(exported).length > 0) {
+                        data[i] = exported;
                     }
                 }
-                return exported;
+                return data;
             },
             SetupFunctions: async function(container) {
                 let current_tab = PonyTown.GetAccessoryTab();
@@ -1109,6 +1118,8 @@
                 debug("Exporting tab #" + i + " (" + i + ")...");
 
                 let exported = await v.Export(await PonyTown.SetTab(v.Tab));
+                Object.keys(exported).forEach((key) => (exported[key] == null || exported[key] == undefined) && delete exported[key]);
+
                 if (Object.keys(exported).length > 0) {
                     data[i] = exported;
                 }
@@ -1128,6 +1139,7 @@
                 let v = TabFunctions[i];
                 debug("Importing tab #" + i + " (" + i + ")...");
 
+                console.log(data[i]);
                 let localdata = data[i] || {};
                 await v.Import(localdata, await PonyTown.SetTab(v.Tab));
             }
@@ -1135,45 +1147,76 @@
         }
     };
 
+    // https://stackoverflow.com/questions/2897619
+    var download = function(filename, text) {
+        var pom = document.createElement('a');
+        pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+        pom.setAttribute('download', filename);
+
+        if (document.createEvent) {
+            var event = document.createEvent('MouseEvents');
+            event.initEvent('click', true, true);
+            pom.dispatchEvent(event);
+        } else {
+            pom.click();
+        }
+    }
+
     var UI = {
         InjectedCSSTag: null,
         ImportDialog: null,
         ExportDialog: null,
         Overlay: null,
         Style: `
-		.nmw-ie-fullscreen{overflow:hidden;align-items:center;background:rgba(51,51,51,0.7);display:flex;height:100%;left:0;position:fixed;top:0;width:100%;z-index:1}
-		.nmw-ie-fullscreen .form{background:#212121;border:4px solid #CA7E4E;border-radius:25px;display:inline-block;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;left:50%;margin:0 auto;padding-left:.5rem;padding-right:.5rem;position:static;top:50%;vertical-align:middle;width:50%}
-		.nmw-ie-fullscreen .form .footer{height:16px;width:100%}
-		.nmw-ie-fullscreen .form .footer .elements{float:right;height:16px;line-height:16px;margin-bottom:.5rem;margin-top:.5rem}
-		.nmw-ie-fullscreen .form .footer .elements .link{display:inline;fill:#1da1f2;text-decoration:none}
-		.nmw-ie-fullscreen .form .footer .elements .text{color:#CA7E4E!important;display:inline;font-size:.75em}
-		.nmw-ie-fullscreen .form .header{color:#888!important;display:block;font-size:1.25em;font-weight:700;line-height:150%;margin-top:.25rem;text-align:center}
-		.nmw-ie-fullscreen .form .text{color:#CCC!important;display:block;font-size:1.25em;font-weight:700;text-align:center}
-		.nmw-ie-fullscreen .form .textarea{display:block;height:60%;line-height:150%;margin-left:auto;margin-right:auto;width:100%}
-		.nmw-ie-fullscreen .form .warning{color:#CA7E4E!important;display:block;font-size:1em;font-weight:700;line-height:150%;text-align:center}
-		.nmw-ie-fullscreen .form button{color:#FFF!important;display:block;font-size:1em;font-weight:700;height:5%;margin-left:auto;margin-right:auto;width:100%}
-		.nmw-ie-fullscreen .form hr{border:0;border-top:1px solid #555;margin-bottom:.5rem;margin-top:.5rem}
+        .nmw-ie-fullscreen{position:fixed;width:100%;height:100%;left:0;top:0;background:rgba(51,51,51,0.7);z-index:1;align-items:center;display:flex}
+        .nmw-ie-fullscreen .form{display:inline-block;vertical-align:middle;width:550px;left:50%;top:50%;position:static;margin:0 auto;background:#212121;border-radius:25px;border:4px solid #CA7E4E;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;padding-left:.5rem;padding-right:.5rem}
+        .nmw-ie-fullscreen .header{margin-top:.25rem;display:block;text-align:center;line-height:150%;font-size:1.25em;color:#888!important;font-weight:700}
+        .nmw-ie-fullscreen .textarea{display:block;line-height:150%;margin-left:auto;margin-right:auto;width:100%;height:200px}
+        .nmw-ie-fullscreen .form .text{display:block;text-align:center;font-size:1.25em;color:#CCC!important;font-weight:700}
+        .nmw-ie-fullscreen .warning{display:block;text-align:center;font-size:1em;line-height:150%;color:#CA7E4E!important;font-weight:700}
+        .nmw-ie-fullscreen hr{border:0;border-top:1px solid #555;margin-top:.5rem;margin-bottom:.5rem}
+        .nmw-ie-fullscreen .form button{display:block;margin-left:auto;margin-right:auto;height:5%;width:100%;font-size:1em;color:#FFF!important;font-weight:800}
+        .nmw-ie-fullscreen .form .footer{height:16px;width:100%}
+        .nmw-ie-fullscreen .form .footer .elements{height:16px;float:right;line-height:16px;margin-top:.5rem;margin-bottom:.5rem}
+        .nmw-ie-fullscreen .form .line-center{margin-top:.5rem;margin-bottom:.5rem;display:flex;justify-content:center;align-items:center}
+        .nmw-ie-fullscreen .input{width:.1px;height:.1px;opacity:0;overflow:hidden;position:absolute;z-index:-1}
+        .nmw-ie-fullscreen .form .footer .elements .text{display:inline;font-size:.75em;color:#CA7E4E!important}
+        .nmw-ie-fullscreen .link{display:inline;fill:#1da1f2;text-decoration:none}
+        .nmw-ie-fullscreen .file-upload-box .input + label{border:2px solid #CA7E4E;padding:.05rem 1.25rem;font-size:1.25em;font-weight:700;color:#fff;background-color:#000;display:inline-block;cursor:pointer}
+        .nmw-ie-fullscreen .file-upload-box .input:focus + label,.file-upload-box .input + label:hover{background-color:#B57046}
 		`,
         ImportHTMLCode: `
 		<label class="header">Import character</label>
-		<hr/>
-		<textarea class="textarea" cols="40" rows="5"></textarea>
-		<hr/>
-		<label class="text">Paste your character code inside and press Import.</label>
-		<label class="warning">
-		Careful! This will erase current character settings.
-		</label>
-		<button class="btn btn-primary">Import</button>
-		<hr/>`,
+        <hr/>
+        <textarea class="textarea" cols="40" rows="5"></textarea>
+        <hr/>
+        <label class="text">Paste your character code inside and press Import.</label>
+        <div class="line-center">
+            <div class="file-upload-box">
+                <input id="file" class="input" accept=".json,.txt" type="file">
+                <label for="file">Or select a file</label>
+            </div>
+        </div>
+        <label class="warning">
+        Careful! This will erase current character settings.
+        </label>
+        <hr/>
+        <button class="btn btn-primary">Import</button>
+        <hr/>`,
         ExportHTMLCode: `
-		<label class="header">Exported character</label>
-		<hr/>
-		<textarea readonly class="textarea" cols="40" rows="5"></textarea>
-		<hr/>
-		<label class="text">Press Ctrl+C to copy.</label>
-		<hr/>
-		<label class="text">Now copy and paste this code somewhere.</label>
-		<button class="btn btn-primary">Dismiss</button>
+        <label class="header">Exported character</label>
+        <hr/>
+        <textarea readonly class="textarea" cols="40" rows="5"></textarea>
+        <hr/>
+        <div class="line-center">
+            <label class="text">Press Ctrl+C to copy, or </label>
+            <a id="dl" class="link" style="margin-left: 0.5rem;">
+                <svg viewBox="0 0 30 30" width="32" height="32"><path d="M22,4h-2v6c0,0.552-0.448,1-1,1h-9c-0.552,0-1-0.448-1-1V4H6C4.895,4,4,4.895,4,6v18c0,1.105,0.895,2,2,2h18  c1.105,0,2-0.895,2-2V8L22,4z M22,24H8v-6c0-1.105,0.895-2,2-2h10c1.105,0,2,0.895,2,2V24z"/><rect height="5" width="2" x="16" y="4"/></svg>
+            </a>
+        </div>
+        <hr/>
+        <button class="btn btn-primary">Dismiss</button>
+        <hr/>
 		`,
         FooterHTMLCode: `
 		<div class="footer">
@@ -1219,7 +1262,7 @@
                 let textarea = this.ImportDialog.querySelector("textarea");
                 textarea.onkeypress = function(ev) {
                     if (ev.keyCode == 10 || (ev.ctrlKey && ev.keyCode == 13)) {
-                        UI.StartImporting();
+                        UI.StartImporting(textarea.value);
                     }
                 };
 
@@ -1235,6 +1278,20 @@
                 textarea.onkeyup = change;
                 textarea.onchange = change;
                 textarea.onpaste = change;
+
+                let fileinput = e.querySelector("input");
+                fileinput.onchange = function() {
+                    let file = fileinput.files[0];
+                    if (file) {
+                        var reader = new FileReader();
+                        reader.readAsText(file, "UTF-8");
+                        reader.onload = function(evt) {
+                            UI.StartImporting(evt.target.result);
+                        }
+                        UI.HideForms();
+                        UI.HideOverlay();
+                    }
+                }
 
                 this.Overlay.appendChild(e);
             }
@@ -1257,6 +1314,14 @@
                     UI.HideOverlay();
                 }
 
+                let dl = e.querySelector("[id='dl']");
+                dl.onclick = function() {
+                    let name = document.querySelector("character-select > div > input");
+                    name = (name ? name.value : "character") + ".json";
+
+                    download(name, textarea.value);
+                }
+
                 this.Overlay.appendChild(e);
             }
         },
@@ -1268,6 +1333,9 @@
 
             this.ShowOverlay();
             this.ImportDialog.style.display = "table-cell";
+
+            let fileinput = this.ImportDialog.querySelector("input");
+            fileinput.value = "";
 
             let button = this.ImportDialog.querySelector("button");
             button.innerHTML = "Dismiss";
@@ -1300,11 +1368,9 @@
             textarea.focus();
             textarea.setSelectionRange(0, textarea.value.length);
         },
-        StartImporting: async function() {
-            let textarea = this.ImportDialog.querySelector("textarea");
-
+        StartImporting: async function(data) {
             try {
-                await Character.Import(textarea.value);
+                await Character.Import(data);
             } catch (err) {
                 throw err;
             } finally {
