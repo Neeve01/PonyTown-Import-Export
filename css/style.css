@@ -1,0 +1,146 @@
+.nmw-overlay {
+    background-color: rgba(51, 51, 51, 0.7);
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    left: 0;
+    top: 0;
+    z-index: 1;
+    align-items: center
+}
+
+.nmw-overlay:not(:empty) {
+    display: flex
+}
+
+.nmw-overlay:empty {
+    display: none
+}
+
+.nmw-overlay .nmw-form {
+    display: inline-block;
+    vertical-align: middle;
+    width: 550px;
+    left: 50%;
+    top: 50%;
+    margin: 0 auto;
+    background: #212121;
+    font-family: Helvetica Neue, Helvetica, Arial, sans-serif
+}
+
+.nmw-overlay .nmw-form .nmw-contents {
+    padding: .75%;
+    border: 1px solid #CA7E4E
+}
+
+.nmw-overlay .nmw-textarea {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+    height: 250px
+}
+
+.nmw-overlay .nmw-form .nmw-text {
+    display: block;
+    text-align: center;
+    font-size: 1.25em;
+    color: #CCC!important;
+    font-weight: 700
+}
+
+.nmw-overlay .nmw-warning {
+    display: block;
+    text-align: center;
+    font-size: 1em;
+    line-height: 150%;
+    color: #CA7E4E!important;
+    font-weight: 700
+}
+
+.nmw-overlay hr {
+    border: 0;
+    border-top: 1px solid #555;
+    margin-top: .5rem;
+    margin-bottom: .5rem
+}
+
+.nmw-overlay .nmw-form .nmw-line-center {
+    display: flex;
+    justify-content: center;
+    align-items: center
+}
+
+.nmw-overlay .nmw-input {
+    width: .1px;
+    height: .1px;
+    opacity: 0;
+    overflow: hidden;
+    position: absolute;
+    z-index: -1
+}
+
+.nmw-overlay .nmw-link {
+    display: inline;
+    fill: #1da1f2;
+    text-decoration: none
+}
+
+.nmw-overlay .nmw-form .nmw-btn-close {
+    border: 0 solid;
+    background: #CA7E4E;
+    width: 5%;
+    padding-bottom: 5%;
+    margin: 0;
+    color: #FFF;
+    font-size: .75em;
+    border-radius: 0
+}
+
+.nmw-overlay .nmw-form .nmw-btn-wide {
+    width: 100%
+}
+
+.nmw-overlay .nmw-inpad {
+    padding-left: 1%;
+    padding-right: 1%
+}
+
+.nmw-overlay .nmw-header {
+    margin: 0;
+    padding: 0;
+    background: #9d603b;
+    text-align: center;
+    line-height: 150%;
+    font-size: 1.1em;
+    color: #fff;
+    font-weight: 400;
+    padding-left: 1%;
+    margin: 0
+}
+
+.nmw-overlay .nmw-row {
+    display: flex;
+    justify-content: space-between
+}
+
+.nmw-overlay .nmw-row .nmw-col {
+    padding: 0;
+    margin: 0
+}
+
+.nmw-overlay .nmw-form .nmw-footer {
+    height: 12px
+}
+
+.nmw-overlay .nmw-form .nmw-footer .nmw-elements {
+    display: flex;
+    height: inherit;
+    float: right;
+    margin-bottom: 1%
+}
+
+.nmw-overlay .nmw-form .nmw-footer .nmw-elements .nmw-text {
+    color: #CA7E4E!important;
+    font-size: .75em
+}
