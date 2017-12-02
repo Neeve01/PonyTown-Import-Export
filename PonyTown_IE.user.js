@@ -15,7 +15,7 @@
     'use strict';
 
     var Resources = {
-        [`css`]: `
+        ['css']: `
         .nmw-overlay{background-color:rgba(51,51,51,0.7);position:fixed;width:100%;height:100%;left:0;top:0;z-index:1;align-items:center}
         .nmw-overlay:not(:empty){display:flex}
         .nmw-overlay:empty{display:none}
