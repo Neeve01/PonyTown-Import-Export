@@ -6,7 +6,7 @@
     left: 0;
     top: 0;
     z-index: 1;
-    align-items: center
+    align-items: center;
 }
 
 .nmw-overlay:not(:empty) {
@@ -25,12 +25,16 @@
     top: 50%;
     margin: 0 auto;
     background: #212121;
-    font-family: Helvetica Neue, Helvetica, Arial, sans-serif
+    font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
 }
 
 .nmw-overlay .nmw-form .nmw-contents {
-    padding: .75%;
-    border: 1px solid #CA7E4E
+    border: 1px solid rgb(157, 96, 59);
+    border-top: none;
+    padding-left: 1%;
+    padding-right: 1%;
+    padding-top: 0.75%;
+    padding-bottom: 0.25%;
 }
 
 .nmw-overlay .nmw-textarea {
@@ -68,7 +72,6 @@
 .nmw-overlay .nmw-form .nmw-line-center {
     display: flex;
     justify-content: center;
-    align-items: center
 }
 
 .nmw-overlay .nmw-input {
@@ -82,65 +85,65 @@
 
 .nmw-overlay .nmw-link {
     display: inline;
-    fill: #1da1f2;
-    text-decoration: none
+    margin-left: 0.5%;
 }
 
 .nmw-overlay .nmw-form .nmw-btn-close {
-    border: 0 solid;
+    border: 0px solid;
     background: #CA7E4E;
     width: 5%;
     padding-bottom: 5%;
     margin: 0;
-    color: #FFF;
+    color: #FFFFFF;
     font-size: .75em;
-    border-radius: 0
+    border-radius: 0%;
 }
 
 .nmw-overlay .nmw-form .nmw-btn-wide {
-    width: 100%
+    width: 100%;
 }
 
 .nmw-overlay .nmw-inpad {
     padding-left: 1%;
-    padding-right: 1%
+    padding-right: 1%;
 }
 
 .nmw-overlay .nmw-header {
     margin: 0;
     padding: 0;
-    background: #9d603b;
+    background: rgb(157, 96, 59);
     text-align: center;
     line-height: 150%;
     font-size: 1.1em;
-    color: #fff;
+    color: rgb(255, 255, 255);
     font-weight: 400;
     padding-left: 1%;
-    margin: 0
+    margin: 0;
 }
 
 .nmw-overlay .nmw-row {
     display: flex;
-    justify-content: space-between
+    justify-content: space-between;
 }
 
 .nmw-overlay .nmw-row .nmw-col {
     padding: 0;
-    margin: 0
+    margin: 0;
 }
 
 .nmw-overlay .nmw-form .nmw-footer {
-    height: 12px
+    height: 12px;
 }
 
 .nmw-overlay .nmw-form .nmw-footer .nmw-elements {
     display: flex;
     height: inherit;
-    float: right;
-    margin-bottom: 1%
+    justify-content: flex-end;
+    line-height: 1;
 }
 
 .nmw-overlay .nmw-form .nmw-footer .nmw-elements .nmw-text {
+    height: inherit;
     color: #CA7E4E!important;
-    font-size: .75em
+    font-size: .75em;
 }
