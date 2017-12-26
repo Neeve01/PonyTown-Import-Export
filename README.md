@@ -4,7 +4,6 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/notmywing.svg?style=social&label=Get%20my%20unimportant%20tweets)](https://twitter.com/NotMyWing)
 
 # Tested with PonyTown 0.30.1-alpha version!
-## Be careful though! Functionality is not yet fully tested.
 
 <div style="text-align:center"><img src="https://i.imgur.com/JQ6KVM5.png"/></div>
 
@@ -21,7 +20,7 @@ It's advised to click **Save** button before importing, still!
 
 ## How do I install?
 1. Install Tampermonkey userscript extension for your browser. No guarantees of working with other extensions
-* [Tampermonkey for Chrome / Microsoft Edge / Safari / Firefox / Opera Next / Dolphin Browser / UC Browser](http://tampermonkey.net/)
+   * [Tampermonkey for Chrome / Microsoft Edge / Safari / Firefox / Opera Next / Dolphin Browser / UC Browser](http://tampermonkey.net/)
 2. Add userscript by clicking here: [[Install userscript]](https://openuserjs.org/scripts/Neeve/PonyTown_ImportExport)
 3. If you already had any opened PonyTown tabs, don't forget to refresh
 
