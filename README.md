@@ -5,8 +5,9 @@
 
 # Tested with PonyTown 0.30.4-alpha version!
 <div style="text-align:center"><img src="https://i.imgur.com/JQ6KVM5.png"/></div>
-## This project is no longer maintained by PT devs request.
-Excluding compatibility updates.
+
+## This project is no longer maintained due to PT devs request.
+Excluding necessary compatibility updates.
 
 ## What does it do?
 This addon lets you to import/export characters from/into a simple JSON code for further use.
