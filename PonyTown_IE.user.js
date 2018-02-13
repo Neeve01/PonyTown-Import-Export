@@ -4,7 +4,7 @@
 // @include     https://pony.town/*
 
 // @author      Neeve
-// @version     0.30.1pre4
+// @version     0.30.4pre1
 // @copyright   2017, Neeve (https://openuserjs.org/users/Neeve)
 // @license     MIT
 

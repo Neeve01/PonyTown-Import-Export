@@ -406,7 +406,7 @@
             },
             SetTab: async function(tab) {
                 if (this.GetTab() != tab) {
-                    let tabset = document.querySelector(".character-tabs > tabset")
+                    let tabset = document.querySelector(".character-tabs > tabset");
                     let hrefs = tabset.querySelectorAll('tabset > ul > li.nav-item > a');
 
                     if (hrefs[tab].className.search("active") == -1) {
@@ -421,9 +421,11 @@
                 if (this.GetTab() != 4)
                     return;
                 if (this.GetAccessoryTab() != tab) {
-                    let tabset = document.getElementById("tabset-tab-4-panel");
+                    let tabset = document.querySelector(".tab-pane.active > .accessory-tab")
+                        .parentNode // accessory-tab
+                        .parentNode // tab-content
+                        .parentNode; // tabset
                     let hrefs = tabset.querySelectorAll('tabset > ul > li.nav-item > a');
-                    console.log(hrefs)
 
                     if (hrefs[tab].className.search("active") == -1) {
                         hrefs[tab].dispatchEvent(clickEvent);
