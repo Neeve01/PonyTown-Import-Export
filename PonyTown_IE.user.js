@@ -4,7 +4,7 @@
 // @include     https://pony.town/*
 
 // @author      Neeve
-// @version     0.30.4pre1
+// @version     0.31.0pre1
 // @copyright   2017, Neeve (https://openuserjs.org/users/Neeve)
 // @license     MIT
 
@@ -840,6 +840,44 @@
             }
 
             await PonyTownUtils.CharacterEditor.SetTab(0);
+        },
+        ExportAll: async function() {
+            var zip = new JSZip();
+            var used_filenames = [];
+
+            try {
+                let list = await PonyTownUtils.CharacterEditor.GetCharacterList();
+                if (list) {
+                    let unknown_count = 0;
+                    for (let i = 0; i < list.length; i++) {
+                        await PonyTownUtils.CharacterEditor.SelectCharacter(i);
+                        let data = JSON.stringify(await Character.Export());
+                        let name,
+                            used_count = 0;
+
+                        do {
+                            let used_suffix = "";
+                            if (used_count > 0) {
+                                used_suffix = "." + used_count;
+                            }
+
+                            name = (list[i] || "unknown-" + (++unknown_count)).replace(/[^a-z0-9]/gi, '_').toLowerCase() + used_suffix;
+                            used_count++;
+                        } while (used_filenames.includes(name));
+                        used_filenames.push(name);
+
+                        zip.file(name + ".pt.json", data);
+                    }
+                    zip.generateAsync({
+                            type: "blob"
+                        })
+                        .then(function(content) {
+                            saveAs(content, "characters.zip");
+                        });
+                }
+            } catch (err) {
+                throw err;
+            }
         }
     };
 
@@ -1038,44 +1076,6 @@
             } catch (err) {
                 throw err;
             }
-        },
-        ExportAll: async function() {
-            var zip = new JSZip();
-            var used_filenames = [];
-
-            try {
-                let list = await PonyTownUtils.CharacterEditor.GetCharacterList();
-                if (list) {
-                    let unknown_count = 0;
-                    for (let i = 0; i < list.length; i++) {
-                        await PonyTownUtils.CharacterEditor.SelectCharacter(i);
-                        let data = JSON.stringify(await Character.Export());
-                        let name,
-                            used_count = 0;
-
-                        do {
-                            let used_suffix = "";
-                            if (used_count > 0) {
-                                used_suffix = "." + used_count;
-                            }
-
-                            name = (list[i] || "unknown-" + (++unknown_count)).replace(/[^a-z0-9]/gi, '_').toLowerCase() + used_suffix;
-                            used_count++;
-                        } while (used_filenames.includes(name));
-                        used_filenames.push(name);
-
-                        zip.file(name + ".pt.json", data);
-                    }
-                    zip.generateAsync({
-                            type: "blob"
-                        })
-                        .then(function(content) {
-                            saveAs(content, "characters.zip");
-                        });
-                }
-            } catch (err) {
-                throw err;
-            }
         }
     }
 
@@ -1086,7 +1086,7 @@
     // --
 
     var InjectControls = function(el) {
-        let preview = el.querySelector("character-preview").parentNode;
+        let preview = el.querySelector(".character-preview-box > character-preview").parentNode;
 
         let controls = document.createElement("div");
         controls.classList.add("nmw-char-preview-controls");
