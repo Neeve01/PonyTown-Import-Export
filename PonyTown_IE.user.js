@@ -605,7 +605,7 @@
 
                         setup.FrontLegAccessories = PonyTownUtils.DefineSet(container, "Front leg accessories");
 
-                        let same_back_legs = container.querySelector("div").querySelector("div:scope > div > div > check-box");
+                        let same_back_legs = container.querySelector("div > div > div > check-box");
                         PonyTownUtils.DefineCheckbox(setup, "SameBackLegs", same_back_legs);
 
                         setup.SetSameBackLegs = (value) => {
