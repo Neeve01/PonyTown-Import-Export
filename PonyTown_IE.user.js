@@ -283,7 +283,10 @@
             SetupFunctions: async function(container) {
                 let setup = {};
 
-                let checkbox = container.querySelector('check-box');
+                let checkbox = document.evaluate('//div[text()=\'allow custom outlines\']')
+                    .iterateNext()
+                    .parentNode
+                    .querySelector("CHECK-BOX");
 
                 PonyTownUtils.DefineCheckbox(setup, "CustomOutlines", checkbox);
                 PonyTownUtils.DefineFillOutline(setup, "BodyColors", container.querySelector('[label="Body color"]'));
