@@ -4,7 +4,7 @@
 // @include     https://pony.town/*
 
 // @author      Neeve
-// @version     0.31.1pre1
+// @version     0.31.1pre2
 // @copyright   2017, Neeve (https://openuserjs.org/users/Neeve)
 // @license     MIT
 
@@ -146,6 +146,10 @@
             Even if it stops working, you would still be able to get your characters' colour codes and patterns from JSON file, just open it with notepad and use the <a href="https://jsonformatter.curiousconcept.com/" target="_blank">JSON formatter</a> to make it readable.
             <br><img src="https://github.com/Neeve01/PonyTown-Import-Export/raw/master/quills.gif" style="
                 width: 12em;
+                -ms-interpolation-mode: nearest-neighbor;
+                image-rendering: -webkit-optimize-contrast;
+                image-rendering: -moz-crisp-edges;
+                image-rendering: -o-pixelated;
                 image-rendering: pixelated;
                 margin: 0 auto;
                 display: block;
