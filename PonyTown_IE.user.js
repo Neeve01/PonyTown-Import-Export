@@ -4,11 +4,15 @@
 // @include     https://pony.town/*
 
 // @author      Neeve
-// @version     0.31.0pre1
+// @version     0.31.1pre1
 // @copyright   2017, Neeve (https://openuserjs.org/users/Neeve)
 // @license     MIT
 
 // @grant       GM_addStyle
+// @grant       GM_getValue
+// @grant       GM_setValue
+// @grant       GM.getValue
+// @grant       GM.setValue
 // @grant       unsafeWindow
 
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js
@@ -86,10 +90,10 @@
             <div class="nmw-elements">
                 <span class="mr-1">Import/Export © NotMyWing</span>
                 <a target="_blank" href="https://twitter.com/NotMyWing" class="mr-1 nmw-link">
-                    <i class="fab fa-twitter"></i>    
+                    <i class="fab fa-twitter"></i>
                 </a>
                 <a target="_blank" href="https://github.com/Neeve01" class="nmw-link">
-                    <i class="fab fa-github"></i>    
+                    <i class="fab fa-github"></i>
                 </a>
             </div>
         </div>
@@ -120,10 +124,45 @@
             <div class="nmw-elements">
                 <span class="mr-1">Import/Export © NotMyWing</span>
                 <a target="_blank" href="https://twitter.com/NotMyWing" class="mr-1 nmw-link">
-                    <i class="fab fa-twitter"></i>    
+                    <i class="fab fa-twitter"></i>
                 </a>
                 <a target="_blank" href="https://github.com/Neeve01" class="nmw-link">
-                    <i class="fab fa-github"></i>    
+                    <i class="fab fa-github"></i>
+                </a>
+            </div>
+        </div>
+        `,
+        ['eol-frame']: `
+        <div class="nmw-row nmw-header">
+            <label class="nmw-col">End of support</label>
+            <button id="nmw-button-close" class="nmw-btn-close btn btn-primary nmw-col">
+            <i class="fa fa-lg fa-times"></i>
+            </button>
+        </div>
+        <div class="nmw-contents">
+            <h3>Hey there!</h3>
+            The save/load project has been "officially" discontinued.<br>
+            If you want to continue using your exported horses, please consider importing them right now, as I give no guarantee of this script being compatible with the next version.<br><br>
+            Even if it stops working, you would still be able to get your characters' colour codes and patterns from JSON file, just open it with notepad and use the <a href="https://jsonformatter.curiousconcept.com/" target="_blank">JSON formatter</a> to make it readable.
+            <br><img src="https://github.com/Neeve01/PonyTown-Import-Export/raw/master/quills.gif" style="
+                width: 12em;
+                image-rendering: pixelated;
+                margin: 0 auto;
+                display: block;
+                ">
+            <div style="display:block; text-align:center"><br>If you were using this script to bypass the character limit, consider
+                <br><a href="https://www.patreon.com/agamnentzar" target="_blank">dropping some bits on Aggie's Patreon page</a><br> to increase your character limit.
+            </div>
+            <br>- Neeve
+        </div>
+        <div class="nmw-footer">
+            <div class="nmw-elements">
+                <span class="mr-1">Import/Export © NotMyWing</span>
+                <a target="_blank" href="https://twitter.com/NotMyWing" class="mr-1 nmw-link">
+                <i class="fab fa-twitter"></i>
+                </a>
+                <a target="_blank" href="https://github.com/Neeve01" class="nmw-link">
+                <i class="fab fa-github"></i>
                 </a>
             </div>
         </div>
@@ -133,7 +172,6 @@
 
     var debugging = false;
 
-    var targetPonyTownVersion = "0.30.1-alpha";
     var githubLink = "https://github.com/Neeve01";
     var twitterLink = "https://twitter.com/NotMyWing";
     var githubScriptLink = "https://github.com/Neeve01/PonyTown-Import-Export";
@@ -1051,10 +1089,34 @@
         return form;
     })();
 
+    var EOLForm = (function() {
+        var html = Resources["eol-frame"];
+
+        function form(overlay, data) {
+            var form = this;
+            this.container = document.createElement("div");
+            overlay.append(this.container);
+
+            this.container.innerHTML = html;
+            this.container.classList.add("nmw-form");
+
+            let button = this.container.querySelector("[id='nmw-button-close']");
+            button.onclick = function() {
+                form.Close();
+            }
+        }
+
+        form.prototype.Close = function() {
+            this.container.remove();
+
+            let setvalue = GM && GM.setValue || GM_setValue;
+            setvalue("EOL-Shown", true);
+        }
+
+        return form;
+    })();
+
     var UI = {
-        InjectedCSSTag: null,
-        ImportDialog: null,
-        ExportDialog: null,
         Overlay: null,
         InjectHTML: function() {
             if (!this.Overlay) {
@@ -1069,6 +1131,11 @@
             this.InjectHTML();
 
             let form = new ImportForm(this.Overlay);
+        },
+        ShowEOL: function() {
+            this.InjectHTML();
+
+            let form = new EOLForm(this.Overlay);
         },
         ShowExport: async function() {
             this.InjectHTML();
@@ -1140,6 +1207,13 @@
                     InjectControls(element);
                 }
                 controls_injected = true;
+
+                let getvalue = GM && GM.getValue || GM_getValue;
+                (async() => {
+                    if (!await getvalue("EOL-Shown", false)) {
+                        UI.ShowEOL();
+                    }
+                })();
             }
         }
     });
